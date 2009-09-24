@@ -1,0 +1,35 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<services-config>
+
+	<services>
+		<service id="remoting-service" class="flex.messaging.services.RemotingService" messageTypes="flex.messaging.messages.RemotingMessage">
+		
+			<adapters>
+	        	<adapter-definition id="java-object" class="flex.messaging.services.remoting.adapters.JavaAdapter" default="true"/>
+	    	</adapters>
+	    	
+	    	<destination id="flexService">
+	        	<properties>
+	        		<factory>spring</factory>
+	            	<source>flexService</source>
+		        </properties>
+		        <channels>
+					<channel ref="my-amf"/>
+				</channels>
+	    	</destination>
+	    	 
+    	</service>
+    	
+	</services>
+	
+	<channels>
+		<channel-definition id="my-amf" class="mx.messaging.channels.AMFChannel">
+			<endpoint uri="http://localhost:8001/erling/messagebroker/amf" class="flex.messaging.endpoints.AMFEndpoint"/>
+		</channel-definition>
+	</channels>
+	
+	<factories>
+		<factory id="spring" class="standardchartered.flex.factory.SpringFactory"/>
+	</factories>
+	
+</services-config>

@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="utf-8"?>
+<mx:Application xmlns:mx="http://www.adobe.com/2006/mxml" layout="absolute"
+	creationComplete="onCreationComplete()"
+	>
+	<mx:Script>
+		<![CDATA[
+			import mx.rpc.events.FaultEvent;
+			import mx.rpc.events.ResultEvent;
+			import mx.controls.Alert;
+			
+			private function onCreationComplete():void {
+				flexService.getOperation("hello").send("Hello some text here");
+			}
+			
+			private function onResult(event:ResultEvent):void {
+				Alert.show(event.message.toString(), "Result");
+			}
+			
+			private function onFault(event:FaultEvent):void {
+				Alert.show(event.toString(), "Fault");
+			}
+		]]>
+	</mx:Script>	
+	<mx:RemoteObject destination="flexService" id="flexService">
+		<mx:method name="hello" result="onResult(event)" fault="onFault(event)" />
+	</mx:RemoteObject>
+</mx:Application>

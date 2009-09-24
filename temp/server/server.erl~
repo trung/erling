@@ -1,0 +1,24 @@
+-module(server).
+-export([start/0, stop/2]).
+
+start() ->
+    inets:start(),
+    inets:start(
+      httpd,
+      [{port,8001},
+       {server_name,”httpd_test”},
+       {bind_address,
+	“localhost”},
+       {server_root,”.”},
+       {document_root,”.”},
+       {modules, [?MODULE]}]).
+
+do(Info) ->
+    {proceed,
+     [{response,
+       {200,
+	[Info]}}
+      ]}.
+
+stop() ->
+    inets:stop().

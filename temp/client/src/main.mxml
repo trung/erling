@@ -32,13 +32,17 @@
 				person.name = "Nguyen Kien Trung";
 				person.age = 27;
 				person.height = 1.69;
+				person.hobbies = new Object();
+				person.hobbies.soccer = "Barcelona";
+				person.hobbies.guitar = "Fender";
+				person.hobbies.laptop = "Macbook Pro";
 				person.createdBy = "FB3";
 				person.createdOn = new Date();
 				person.address = new Address();
 				person.address.street = "Sims Drive #08-211";
 				person.address.postcode = 380040;
-				person.createdBy = "FB3";
-				person.createdOn = new Date();
+				person.address.createdBy = "FB3";
+				person.address.createdOn = new Date();
 				
 				flexService.getOperation("savePerson").send(person);
 			}

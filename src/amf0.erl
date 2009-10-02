@@ -3,7 +3,7 @@
 
 -export([read_object/1, read_u8/1, read_u16/1, read_u32/1, read_string/1, reset/0]).
 
--include("action_message.hrl").
+-include("../include/action_message.hrl").
 
 -define(number_marker, 16#00).
 -define(boolean_marker, 16#01).
@@ -89,7 +89,7 @@ read_xml(Bin) ->
     read_long_string(Bin).
 
 read_typed_object(Bin) ->
-    {ok, ClassName, BinAfterClassName} = read_string(Bin),
+    {ok, _ClassName, _BinAfterClassName} = read_string(Bin),
     {bad, {"Not yet implemented", ?MODULE, ?LINE, Bin}}.
 
 %% return {ok, value/Value, Rest} or {bad, Reason}

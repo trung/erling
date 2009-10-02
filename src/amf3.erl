@@ -3,9 +3,9 @@
 % -export([read_object/1, reset/0, read_uint_29/1]).
 -compile(export_all).
 
--include("action_message.hrl").
--include("messages.hrl").
--include("flex_classes.hrl").
+-include("../include/action_message.hrl").
+-include("../include/messages.hrl").
+-include("../include/flex_classes.hrl").
 
 -define(undefined_marker, 16#00).
 -define(null_marker,      16#01).

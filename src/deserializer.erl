@@ -3,7 +3,7 @@
 
 -export([read/1]).
 
--include("action_message.hrl").
+-include("../include/action_message.hrl").
 
 read_header(Bin) ->
     io:fwrite("Bin = ~n~p~n", [Bin]),

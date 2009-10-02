@@ -2,8 +2,8 @@
 -author("trung@mdkt.org").
 -compile(export_all).
 
--include("messages.hrl").
--include("flex_classes.hrl").
+-include("../include/messages.hrl").
+-include("../include/flex_classes.hrl").
 
 %% Setters for records defined in messages.hrl file
 %% return {ok, NewObject, {propertyName, NewValue}}

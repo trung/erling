@@ -39,9 +39,46 @@ new_record(command_message) ->
 		operation = ?UNKNOWN_OPERATION
 	}.
 
-%% Test setters
 abstract_message_set_clientId_test() ->
 	NewValue = 2,
 	{ok, NewR, _} = record_utils:set(new_record(abstract_message), clientId, NewValue),
 	?assert(is_record(NewR, abstract_message)),
 	?assert(NewR#abstract_message.clientId =:= NewValue).
+	
+abstract_message_set_destination_test() ->
+	NewValue = "new dest",
+	{ok, NewR, _} = record_utils:set(new_record(abstract_message), destination, NewValue),
+	?assert(is_record(NewR, abstract_message)),
+	?assert(NewR#abstract_message.destination =:= NewValue).
+	
+abstract_message_set_messageId_test() ->
+	NewValue = "some value",
+	{ok, NewR, _} = record_utils:set(new_record(abstract_message), messageId, NewValue),
+	?assert(is_record(NewR, abstract_message)),
+	?assert(NewR#abstract_message.messageId =:= NewValue).
+
+abstract_message_set_timestamp_test() ->
+	NewValue = 9,
+	{ok, NewR, _} = record_utils:set(new_record(abstract_message), timestamp, NewValue),
+	?assert(is_record(NewR, abstract_message)),
+	?assert(NewR#abstract_message.timestamp =:= NewValue).
+
+abstract_message_set_timeToLive_test() ->
+	NewValue = 9,
+	{ok, NewR, _} = record_utils:set(new_record(abstract_message), timeToLive, NewValue),
+	?assert(is_record(NewR, abstract_message)),
+	?assert(NewR#abstract_message.timeToLive =:= NewValue).
+
+abstract_message_set_headers_test() ->
+	NewValue = [{newheader1}, {newheader2}],
+	{ok, NewR, _} = record_utils:set(new_record(abstract_message), headers, NewValue),
+	?assert(is_record(NewR, abstract_message)),
+	?assert(NewR#abstract_message.headers =:= NewValue).
+
+abstract_message_set_body_test() ->
+	NewValue = ["some body"],
+	{ok, NewR, _} = record_utils:set(new_record(abstract_message), body, NewValue),
+	?assert(is_record(NewR, abstract_message)),
+	?assert(NewR#abstract_message.body =:= NewValue).
+
+

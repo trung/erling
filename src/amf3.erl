@@ -260,7 +260,7 @@ read_date(Bin) ->
 
 %% TODO use xmerl?
 read_xml(Bin) ->
-    {bad, "Not yet implemented", ?MODULE, ?LINE}.
+    {bad, "Not yet implemented", ?MODULE, ?LINE, Bin}.
 
 %% Return {ok, value|Value, Rest} or {bad, Reason}
 read_object(<<?undefined_marker:8, Rest/binary>>) -> {bad, {"Undefined marker ", Rest}};

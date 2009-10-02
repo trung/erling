@@ -1,7 +1,7 @@
 -module(amf0).
 -author("trung@mdkt.org").
 
--export([read_object/1, read_u8/1, read_u16/1, read_u32/1, read_string/1]).
+-export([read_object/1, read_u8/1, read_u16/1, read_u32/1, read_string/1, reset/0]).
 
 -include("action_message.hrl").
 
@@ -23,6 +23,11 @@
 -define(xml_document_marker, 16#0F).
 -define(typed_object_marker, 16#10).
 -define(avm_plus_object_marker, 16#11).
+
+%% Clear ETS tables
+reset() ->
+    _ = amf3:reset(),
+    {ok}.
 
 read_u8(<<Value:8, Rest/binary>>) ->
     {ok, Value, Rest}.

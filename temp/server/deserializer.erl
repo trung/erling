@@ -12,6 +12,8 @@ read_header(Bin) ->
     {ok, _DataLen, DataBin} = amf0:read_u32(BinAfterMustUnderstand),
     %% Don't care about DataLen, just read
     %% {DataBin, NextBin} = split_binary(Rest2, DataLen),
+    %% clear ETS tables
+    amf0:reset(),
     {ok, Data, NextBin} = amf0:read_object(DataBin),
     Header = #header{headerName = HeaderName, mustUnderstand = case MustUnderstand of 0 -> false; _Other -> true end, data = Data},
     {ok, Header, NextBin}.
@@ -29,6 +31,8 @@ read_body(Bin) ->
     {ok, _DataLen, DataBin} = amf0:read_u32(BinAfterResponseUri),
     %% Don't care about DataLen, just read
     %% {DataBin, NextBin} = split_binary(Rest2, DataLen),
+    %% clear ETS tables
+    amf0:reset(),
     {ok, Data, NextBin} = amf0:read_object(DataBin),
     Body = #body{targetUri = TargetUri, responseUri = ResponseUri, data=Data},
     {ok, Body, NextBin}.

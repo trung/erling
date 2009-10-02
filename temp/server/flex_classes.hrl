@@ -1,0 +1,3 @@
+-define(FC_ARRAYCOLLECTION, "flex.messaging.io.ArrayCollection").
+-define(FC_OBJECTPROXY, "flex.messaging.io.ObjectProxy").
+-define(FC_REMOTINGMESSAGE, "flex.messaging.messages.RemotingMessage").

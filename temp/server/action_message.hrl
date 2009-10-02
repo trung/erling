@@ -11,6 +11,10 @@
 -define(AMF_CONTENT_TYPE, "application/x-amf").
 -define(XML_CONTENT_TYPE, "application/xml").
 
+-define(OBJECT_REF_TABLE, objectRefTable).
+-define(TRAIT_REF_TABLE, traitRefTable).
+-define(STRING_REF_TABLE, stringRefTable).
+
 -record(header, {headerName = "", mustUnderstand = false, data = <<>>}).
 -record(body, {targetUri = "", responseUri = "", data = <<>> }).
 
@@ -26,3 +30,4 @@
 	  dynamic = false,
 	  properties = []
 	 }).
+

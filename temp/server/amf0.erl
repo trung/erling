@@ -79,7 +79,10 @@ read_date(Bin) ->
     {ok, Date, NextBin}.
 
 read_long_string(Bin) ->
-    {bad, {"Not yet implemented", ?MODULE, ?LINE, Bin}}.
+    {ok, StringLen, BinAfterLen} = read_u32(Bin),
+    {StringBin, NextBin} = split_binary(BinAfterLen, StringLen),
+    {ok, String} = utf8:from_binary(StringBin),
+    {ok, String, NextBin}.
 
 read_xml(Bin) ->
     {bad, {"Not yet implemented", ?MODULE, ?LINE, Bin}}.

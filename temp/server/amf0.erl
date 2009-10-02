@@ -89,6 +89,7 @@ read_xml(Bin) ->
     read_long_string(Bin).
 
 read_typed_object(Bin) ->
+    {ok, ClassName, BinAfterClassName} = read_string(Bin),
     {bad, {"Not yet implemented", ?MODULE, ?LINE, Bin}}.
 
 %% return {ok, value/Value, Rest} or {bad, Reason}

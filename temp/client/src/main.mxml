@@ -1,27 +1,64 @@
 <?xml version="1.0" encoding="utf-8"?>
-<mx:Application xmlns:mx="http://www.adobe.com/2006/mxml" layout="absolute"
+<mx:Application xmlns:mx="http://www.adobe.com/2006/mxml" layout="vertical"
 	creationComplete="onCreationComplete()"
 	>
 	<mx:Script>
 		<![CDATA[
+			import vo.Address;
+			import vo.Person;
 			import mx.rpc.events.FaultEvent;
 			import mx.rpc.events.ResultEvent;
 			import mx.controls.Alert;
 			
 			private function onCreationComplete():void {
-				flexService.getOperation("hello").send("Hello some text here");
 			}
 			
 			private function onResult(event:ResultEvent):void {
-				Alert.show(event.message.toString(), "Result");
+				outputArea.text = event.toString();
 			}
 			
 			private function onFault(event:FaultEvent):void {
-				Alert.show(event.toString(), "Fault");
+				outputArea.text = event.toString();
+			}
+			
+			private function sayHello():void {
+				outputArea.text = "";
+				flexService.getOperation("sayHello").send("Trung");
+			}
+			
+			private function savePerson():void {
+				outputArea.text = "";
+				var person:Person = new Person();
+				person.name = "Nguyen Kien Trung";
+				person.age = 27;
+				person.height = 1.69;
+				person.hobbies = new Object();
+				person.hobbies.soccer = "Barcelona";
+				person.hobbies.guitar = "Fender";
+				person.hobbies.laptop = "Macbook Pro";
+				person.createdBy = "FB3";
+				person.createdOn = new Date();
+				person.address = new Address();
+				person.address.street = "Sims Drive #08-211";
+				person.address.postcode = 380040;
+				person.address.createdBy = "FB3";
+				person.address.createdOn = new Date();
+				
+				flexService.getOperation("savePerson").send(person);
 			}
 		]]>
 	</mx:Script>	
 	<mx:RemoteObject destination="flexService" id="flexService">
 		<mx:method name="hello" result="onResult(event)" fault="onFault(event)" />
+		<mx:method name="savePerson" result="onResult(event)" fault="onFault(event)" />
 	</mx:RemoteObject>
+	
+	<mx:HBox width="600" height="400">
+		<mx:VBox>
+			<mx:Button label="flexService.hello(String)"  click="sayHello()" />
+			<mx:Button label="flexService.savePerson(personObject)"  click="savePerson()" />
+		</mx:VBox>
+		<mx:TextArea id="outputArea" height="100%" width="100%" />
+	</mx:HBox>
+	
 </mx:Application>

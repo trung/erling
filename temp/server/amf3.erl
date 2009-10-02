@@ -1,5 +1,7 @@
 -module(amf3).
--export([read_object/1, reset/0, read_uint_29/1]).
+-author("trung@mdkt.org").
+% -export([read_object/1, reset/0, read_uint_29/1]).
+-compile(export_all).
 
 -include("action_message.hrl").
 -include("messages.hrl").
@@ -239,18 +241,39 @@ read_object_with_trait(Bin, TraitObj) when is_record(TraitObj, trait) ->
 	    read_object_property(Bin, TraitObj#trait.properties, NewObject)
     end.
 
+read_double(<<Value/float, Rest/binary>>) ->
+    {ok, Value, Rest}.
+
+read_date(Bin) ->
+    {ok, Ref, BinAfterRef} = read_uint_29(Bin),
+    case Ref band 1 of
+	0 ->
+	    {ok, DateRef} = read_object_reference(Ref bsr 1),
+	    {ok, DateRef, BinAfterRef};
+	_ ->
+	    {ok, TimeInMilli, NextBin} = read_double(BinAfterRef),
+	    %% convert to erlang date
+	    Date = utils:milliseconds_to_date(TimeInMilli),
+	    _ = write_object_reference(Date),
+	    {ok, Date, NextBin}
+    end.
+
+%% TODO use xmerl?
+read_xml(Bin) ->
+    {bad, "Not yet implemented", ?MODULE, ?LINE}.
+
 %% Return {ok, value|Value, Rest} or {bad, Reason}
 read_object(<<?undefined_marker:8, Rest/binary>>) -> {bad, {"Undefined marker ", Rest}};
-read_object(<<?null_marker:8,      Rest/binary>>)  -> {ok, null, Rest};
-read_object(<<?false_marker:8,     Rest/binary>>)  -> {ok, false, Rest};
-read_object(<<?true_marker:8,      Rest/binary>>)  -> {ok, true, Rest};
-read_object(<<?integer_marker:8,   Rest/binary>>)  -> read_uint_29(Rest);
-read_object(<<?double_marker:8,    Rest/binary>>) -> {bad, {"Not yet implemented marker", Rest}};
+read_object(<<?null_marker:8,      Rest/binary>>) -> {ok, null, Rest};
+read_object(<<?false_marker:8,     Rest/binary>>) -> {ok, false, Rest};
+read_object(<<?true_marker:8,      Rest/binary>>) -> {ok, true, Rest};
+read_object(<<?integer_marker:8,   Rest/binary>>) -> read_uint_29(Rest);
+read_object(<<?double_marker:8,    Rest/binary>>) -> read_double(Rest);
 read_object(<<?string_marker:8,    Rest/binary>>) -> read_string(Rest);
-read_object(<<?xml_doc_marker:8,   Rest/binary>>) -> {bad, {"Not yet implemented marker", Rest}};
-read_object(<<?date_marker:8,      Rest/binary>>) -> {bad, {"Not yet implemented marker", Rest}};
+read_object(<<?xml_doc_marker:8,   Rest/binary>>) -> read_xml(Rest);
+read_object(<<?date_marker:8,      Rest/binary>>) -> read_date(Rest);
 read_object(<<?array_marker:8,     Rest/binary>>) -> read_array(Rest);
-read_object(<<?object_marker:8,    Rest/binary>>)  ->
+read_object(<<?object_marker:8,    Rest/binary>>) ->
     %% io:fwrite("Reading Ref from ~p got value ", [Rest]),
     {ok, Ref, BinAfterRef} = read_uint_29(Rest),
     case Ref band 1 of
@@ -276,7 +299,7 @@ read_object(<<?object_marker:8,    Rest/binary>>)  ->
 		    {ok, Obj, BinAfterObj}
 	    end
     end;
-read_object(<<?xml_marker:8,       Rest/binary>>) -> {bad, {"Not yet implemented marker", Rest}};
+read_object(<<?xml_marker:8,       Rest/binary>>) -> read_xml(Rest);
 
 read_object(<<>>) ->
     {ok, null, <<>>};

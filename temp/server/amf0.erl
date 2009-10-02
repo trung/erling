@@ -70,23 +70,40 @@ read_strict_array(Bin) ->
     {ok, Size, BinAfterSize} = read_u32(Bin),
     read_strict_array(BinAfterSize, 0, Size, []).
 
+read_date(Bin) ->
+    %% Just read, not use
+    {ok, _, BinAfterTimeZone} = read_u16(Bin),
+    {ok, TimeInMilli, NextBin} = read_number(BinAfterTimeZone),
+    %% convert to erlang date
+    Date = utils:milliseconds_to_date(TimeInMilli),
+    {ok, Date, NextBin}.
+
+read_long_string(Bin) ->
+    {bad, {"Not yet implemented", ?MODULE, ?LINE, Bin}}.
+
+read_xml(Bin) ->
+    {bad, {"Not yet implemented", ?MODULE, ?LINE, Bin}}.
+
+read_typed_object(Bin) ->
+    {bad, {"Not yet implemented", ?MODULE, ?LINE, Bin}}.
+
 %% return {ok, value/Value, Rest} or {bad, Reason}
-read_object(<<?number_marker:8, Rest/binary>>) -> read_number(Rest);
-read_object(<<?boolean_marker:8, Rest/binary>>) -> read_boolean(Rest);
-read_object(<<?string_marker:8, Rest/binary>>) -> read_string(Rest);
-read_object(<<?object_marker:8, Rest/binary>>) -> {bad, {"Not supported",?MODULE,?LINE, Rest}};
-read_object(<<?movieclip_marker:8, Rest/binary>>) -> {bad, {"Reserved, not supported", Rest}};
-read_object(<<?null_marker:8, Rest/binary>>) -> {ok, null, Rest};
-read_object(<<?undefined_marker:8, Rest/binary>>) -> {bad, {"Not supported",?MODULE, ?LINE, Rest}};
-read_object(<<?reference_marker:8, Rest/binary>>) -> {bad, {"Not supported",?MODULE, ?LINE, Rest}};
-read_object(<<?ecma_array_marker:8, Rest/binary>>) -> {bad, {"Not supported",?MODULE, ?LINE, Rest}};
-read_object(<<?object_end_marker:8, Rest/binary>>) -> {bad, {"Not supported",?MODULE, ?LINE, Rest}};
-read_object(<<?strict_array_marker:8, Rest/binary>>) -> read_strict_array(Rest);
-read_object(<<?date_marker:8, Rest/binary>>) -> {bad, {"Not supported",?MODULE, ?LINE, Rest}};
-read_object(<<?long_string_marker:8, Rest/binary>>) -> {bad, {"Not supported",?MODULE, ?LINE, Rest}};
-read_object(<<?unsupported_marker:8, Rest/binary>>) -> {bad, {"Not supported",?MODULE, ?LINE, Rest}};
-read_object(<<?recordset_marker:8, Rest/binary>>) -> {bad, {"Reserved, not supported",?MODULE, ?LINE, Rest}};
-read_object(<<?xml_document_marker:8, Rest/binary>>) -> {bad, {"Not supported",?MODULE, ?LINE, Rest}};
-read_object(<<?typed_object_marker:8, Rest/binary>>) -> {bad, {"Not supported",?MODULE, ?LINE, Rest}};
+read_object(<<?number_marker:8, Rest/binary>>)          -> read_number(Rest);
+read_object(<<?boolean_marker:8, Rest/binary>>)         -> read_boolean(Rest);
+read_object(<<?string_marker:8, Rest/binary>>)          -> read_string(Rest);
+read_object(<<?object_marker:8, Rest/binary>>)          -> {bad, {"Not yet implemented", ?MODULE,?LINE, Rest}};
+read_object(<<?movieclip_marker:8, Rest/binary>>)       -> {bad, {"Reserved, not supported", Rest}};
+read_object(<<?null_marker:8, Rest/binary>>)            -> {ok, null, Rest};
+read_object(<<?undefined_marker:8, Rest/binary>>)       -> {bad, {"Undefined marker", ?MODULE, ?LINE, Rest}};
+read_object(<<?reference_marker:8, Rest/binary>>)       -> {bad, {"Not yet implemented", ?MODULE, ?LINE, Rest}};
+read_object(<<?ecma_array_marker:8, Rest/binary>>)      -> {bad, {"Not yet implemented", ?MODULE, ?LINE, Rest}};
+read_object(<<?object_end_marker:8, Rest/binary>>)      -> {bad, {"Unexpected object end", ?MODULE, ?LINE, Rest}};
+read_object(<<?strict_array_marker:8, Rest/binary>>)    -> read_strict_array(Rest);
+read_object(<<?date_marker:8, Rest/binary>>)            -> read_date(Rest);
+read_object(<<?long_string_marker:8, Rest/binary>>)     -> read_long_string(Rest);
+read_object(<<?unsupported_marker:8, Rest/binary>>)     -> {bad, {"Not yet implemented", ?MODULE, ?LINE, Rest}};
+read_object(<<?recordset_marker:8, Rest/binary>>)       -> {bad, {"Reserved, not supported", ?MODULE, ?LINE, Rest}};
+read_object(<<?xml_document_marker:8, Rest/binary>>)    -> read_xml(Rest);
+read_object(<<?typed_object_marker:8, Rest/binary>>)    -> read_typed_object(Rest);
 %% switch to AMF3
 read_object(<<?avm_plus_object_marker:8, Rest/binary>>) -> amf3:read_object(Rest).

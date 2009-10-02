@@ -22,10 +22,11 @@
 -define(recordset_marker, 16#0E). %% reserved, not supported
 -define(xml_document_marker, 16#0F).
 -define(typed_object_marker, 16#10).
--define(avm_plus_object_marker, 16#11).
+-define(avm_plus_object_marker, 16#11). %% define AMF3 must be used
 
 %% Clear ETS tables
 reset() ->
+    _ = ref_table:clear(?OBJECT_REF_TABLE_AMF0),
     _ = amf3:reset(),
     {ok}.
 
@@ -59,23 +60,33 @@ read_boolean(<<Value:8, Rest/binary>>) ->
 read_boolean(Something) ->
     {bad, {"Can't read boolean", Something}}.
 
+read_strict_array(Bin, Count, Total, Acc) when Count == Total ->
+    {ok, Acc, Bin};
+read_strict_array(Bin, Count, Total, Acc) ->
+    {ok, Obj, NextBin} = read_object(Bin),
+    read_strict_array(NextBin, Count + 1, Total, Acc ++ [Obj]).
+
+read_strict_array(Bin) ->
+    {ok, Size, BinAfterSize} = read_u32(Bin),
+    read_strict_array(BinAfterSize, 0, Size, []).
+
 %% return {ok, value/Value, Rest} or {bad, Reason}
 read_object(<<?number_marker:8, Rest/binary>>) -> read_number(Rest);
 read_object(<<?boolean_marker:8, Rest/binary>>) -> read_boolean(Rest);
 read_object(<<?string_marker:8, Rest/binary>>) -> read_string(Rest);
-read_object(<<?object_marker:8, Rest/binary>>) -> {bad, {"Not supported", Rest}};
+read_object(<<?object_marker:8, Rest/binary>>) -> {bad, {"Not supported",?MODULE,?LINE, Rest}};
 read_object(<<?movieclip_marker:8, Rest/binary>>) -> {bad, {"Reserved, not supported", Rest}};
 read_object(<<?null_marker:8, Rest/binary>>) -> {ok, null, Rest};
-read_object(<<?undefined_marker:8, Rest/binary>>) -> {bad, {"Not supported", Rest}};
-read_object(<<?reference_marker:8, Rest/binary>>) -> {bad, {"Not supported", Rest}};
-read_object(<<?ecma_array_marker:8, Rest/binary>>) -> {bad, {"Not supported", Rest}};
-read_object(<<?object_end_marker:8, Rest/binary>>) -> {bad, {"Not supported", Rest}};
-read_object(<<?strict_array_marker:8, Rest/binary>>) -> {bad, {"Not supported", Rest}};
-read_object(<<?date_marker:8, Rest/binary>>) -> {bad, {"Not supported", Rest}};
-read_object(<<?long_string_marker:8, Rest/binary>>) -> {bad, {"Not supported", Rest}};
-read_object(<<?unsupported_marker:8, Rest/binary>>) -> {bad, {"Not supported", Rest}};
-read_object(<<?recordset_marker:8, Rest/binary>>) -> {bad, {"Reserved, not supported", Rest}};
-read_object(<<?xml_document_marker:8, Rest/binary>>) -> {bad, {"Not supported", Rest}};
-read_object(<<?typed_object_marker:8, Rest/binary>>) -> {bad, {"Not supported", Rest}};
+read_object(<<?undefined_marker:8, Rest/binary>>) -> {bad, {"Not supported",?MODULE, ?LINE, Rest}};
+read_object(<<?reference_marker:8, Rest/binary>>) -> {bad, {"Not supported",?MODULE, ?LINE, Rest}};
+read_object(<<?ecma_array_marker:8, Rest/binary>>) -> {bad, {"Not supported",?MODULE, ?LINE, Rest}};
+read_object(<<?object_end_marker:8, Rest/binary>>) -> {bad, {"Not supported",?MODULE, ?LINE, Rest}};
+read_object(<<?strict_array_marker:8, Rest/binary>>) -> read_strict_array(Rest);
+read_object(<<?date_marker:8, Rest/binary>>) -> {bad, {"Not supported",?MODULE, ?LINE, Rest}};
+read_object(<<?long_string_marker:8, Rest/binary>>) -> {bad, {"Not supported",?MODULE, ?LINE, Rest}};
+read_object(<<?unsupported_marker:8, Rest/binary>>) -> {bad, {"Not supported",?MODULE, ?LINE, Rest}};
+read_object(<<?recordset_marker:8, Rest/binary>>) -> {bad, {"Reserved, not supported",?MODULE, ?LINE, Rest}};
+read_object(<<?xml_document_marker:8, Rest/binary>>) -> {bad, {"Not supported",?MODULE, ?LINE, Rest}};
+read_object(<<?typed_object_marker:8, Rest/binary>>) -> {bad, {"Not supported",?MODULE, ?LINE, Rest}};
 %% switch to AMF3
 read_object(<<?avm_plus_object_marker:8, Rest/binary>>) -> amf3:read_object(Rest).

@@ -1,5 +1,5 @@
 -module(amf3).
--export([read_object/1, reset/0]).
+-export([read_object/1, reset/0, read_uint_29/1]).
 
 -include("action_message.hrl").
 -include("messages.hrl").
@@ -20,54 +20,10 @@
 
 %% Clear ETS tables: string, object and trait
 reset() ->
-    _ = clear(?OBJECT_REF_TABLE),
-    _ = clear(?TRAIT_REF_TABLE),
-    _ = clear(?STRING_REF_TABLE),
+    _ = ref_table:clear(?OBJECT_REF_TABLE),
+    _ = ref_table:clear(?TRAIT_REF_TABLE),
+    _ = ref_table:clear(?STRING_REF_TABLE),
     {ok}.
-
-%% delete all objects
-clear(TableName) ->
-    try ets:delete_all_objects(TableName) of
-	true ->
-	    _ = ets:insert(TableName, {counter, 0}),
-	    {ok}
-    catch
-	error:Error ->
-	    {bad, Error}
-    end.
-
-%% Make sure the table exist, if not, create new one
-sure_exist(TableName) ->
-    case ets:info(TableName) of
-	undefined ->
-	    ets:new(TableName, [named_table]),
-	    _ = ets:insert(TableName, {counter, 0}),
-	    {ok, created};
-	_ ->
-	    {ok, exists}
-    end.
-
-%% wrapper of ets:insert, just make sure the table exists
-insert(TableName, Obj) ->
-    _ = sure_exist(TableName),
-    {ok, Count} = read(TableName, counter),
-    io:fwrite("Inserting into ~p - index: ~p - value: ~p ~n", [TableName, Count, Obj]),
-    _ = ets:insert(TableName, {Count, Obj}),
-    _ = ets:insert(TableName, {counter, Count+1}),
-    {ok, inserted, Count}.
-
-%% wrapper of ets:lookup
-read(TableName, Ref) ->
-    io:fwrite("Read from ~p with index ~p got value ", [TableName, Ref]),
-    case ets:lookup(TableName, Ref) of
-	[] ->
-	    {bad, {not_found, TableName, Ref}};
-	[{counter, Count}|_] ->
-	    {ok, Count};
-	[{_Idx, Obj}|_] ->
-%%	    io:fwrite("~p~n", [Obj]),
-	    {ok, Obj}
-    end.
 
 %% The high bit of the first 3 bytes are used as flags to determine 
 %% whether the next byte is part of the integer. 
@@ -84,43 +40,43 @@ read(TableName, Ref) ->
 read_uint_29(<<2#0:1, First:7, Rest/binary>>) ->
     {ok, First, Rest};
 read_uint_29(<<2#1:1, First:7, 2#0:1, Second:7, Rest/binary>>) ->    
-    {ok, ((First bor 16#80) bsl 8) bor Second, Rest};
+    {ok, ((First band 16#7F) bsl 7) bor Second, Rest};
 read_uint_29(<<2#1:1, First:7, 2#1:1, Second:7, 2#0:1, Third:7, Rest/binary>>) ->
-    {ok, ((First bor 16#80) bsl 16) bor ((Second bor 16#80) bsl 8) bor Third, Rest};
+    {ok, ((((First band 16#7F) bsl 7) bor (Second band 16#7F)) bsl 7) bor Third, Rest};
 read_uint_29(<<2#1:1, First:7, 2#1:1, Second:7, 2#1:1, Third:7, Forth:8, Rest/binary>>) ->
-    {ok, ((First bor 16#80) bsl 24) bor ((Second bor 16#80) bsl 16) bor ((Third bor 16#80) bsl 8) bor Forth, Rest};
+    {ok, (((((First band 16#7F) bsl 7) bor (Second band 16#7F)) bsl 7) bor ((Third band 16#7F) bsl 8)) bor Forth, Rest};
 read_uint_29(_) ->
     {bad, "Not a binary or number out of range or empty binary"}.
 
 %% Read object from ETS based on the key Ref
 %% Return {ok, Obj} or {bad, Reason}
 read_object_reference(Ref) ->
-    {bad, {"Not yet implemented: read_object_reference", Ref}}.
+    ref_table:read(?OBJECT_REF_TABLE, Ref).
 
 %% Read object from ETS based on the key Ref
 %% Return {ok, Obj} or {bad, Reason}
 read_trait_reference(Ref) ->
-    read(?TRAIT_REF_TABLE, Ref).
+    ref_table:read(?TRAIT_REF_TABLE, Ref).
 
 %% Read object from ETS based on the key Ref
 %% Return {ok, Str} or {bad, Reason}
 read_string_reference(Ref) ->
-    {bad, {"Not yet implemented: read_string_reference", Ref}}.
+    ref_table:read(?STRING_REF_TABLE, Ref).
 
-write_object_reference(Ref, Obj) ->
-    %% TODO store the {Ref, Obj} to ETS
+write_object_reference(Obj) ->
+    {ok, inserted, Ref} = ref_table:insert(?OBJECT_REF_TABLE, Obj),
     {ok, Ref, Obj}.
 
 write_trait_reference(Obj) ->
-    {ok, inserted, Ref} = insert(?TRAIT_REF_TABLE, Obj),
+    {ok, inserted, Ref} = ref_table:insert(?TRAIT_REF_TABLE, Obj),
     {ok, Ref, Obj}.
 
 %% Not store if string is empty
-write_string_reference(Ref, Str) when length(Str) == 0 ->
-    {ok, Ref, Str};
+write_string_reference(Str) when length(Str) == 0 ->
+    {ok, -1, Str};
 %% Return {ok, Ref, Str}
-write_string_reference(Ref, Str) ->
-    %% TODO store the {Ref, Str} to ETS
+write_string_reference(Str) ->
+    {ok, inserted, Ref} = ref_table:insert(?STRING_REF_TABLE, Str),
     {ok, Ref, Str}.
     
 %% AMF 0 and AMF 3 use (non-modified) UTF-8 to encode strings. UTF-8
@@ -165,7 +121,7 @@ read_string(Bin) ->
 	    {StrBin, BinAfterStrBin} = split_binary(BinAfterRef, StrLen),	    
 	    {ok, Str} = binary_to_utf8(StrBin),
 	    %% io:fwrite("StrLen: ~p~nBinString: ~n~p~nString: ~p~n", [StrLen, StrBin, Str]),
-	    {ok, _, _} = write_string_reference(RefIndex, Str),
+	    {ok, _, _} = write_string_reference(Str),
 	    {ok, Str, BinAfterStrBin}
     end.
 
@@ -186,6 +142,7 @@ read_trait(Ref, Bin) ->
 	    Dynamic = (Ref band 8) == 8,
 	    PropertyCount = Ref bsr 4,
 	    {ok, ClassName, BinAfterClassName} = read_string(Bin),
+	    io:fwrite("This trait has ~p properties~n", [PropertyCount]),
 	    {ok, Properties, BinAfterProperties} = read_properties(BinAfterClassName, 0, PropertyCount, []),
 	    Trait = #trait{className = ClassName, externalizable = Externalizable, dynamic = Dynamic, properties = Properties},
 	    {ok, _, _} = write_trait_reference(Trait),
@@ -235,12 +192,12 @@ read_array(Bin) ->
 		length(Map) == 0 ->
 		    %% Read as normal array [Value1, Value2, ...]
 		    {ok, Array, BinAfterArray} = read_dense_array(BinAfterMap, 0, Len, []),
-		    {ok, _, _} = write_object_reference(IndexRef, Array),
+		    {ok, _, _} = write_object_reference(Array),
 		    {ok, Array, BinAfterArray};
 		true ->
 		    %% Continue read as associative arrray
 		    {ok, MapExt, BinAfterMapExt} = read_associative_array_ext(BinAfterMap, 0, Len, Map),
-		    {ok, _, _} = write_object_reference(IndexRef, MapExt),
+		    {ok, _, _} = write_object_reference(MapExt),
 		    {ok, MapExt, BinAfterMapExt}
 	    end
     end.
@@ -250,6 +207,17 @@ is_type(externalizable, true, ?FC_OBJECTPROXY) -> true;
 is_type(externalizable, true, _) -> false;
 is_type(externalizable, false, _) -> not_externalizable.
 
+read_object_property(Bin, {dynamic, true}, PropertyMap) when is_list(PropertyMap) ->
+    {ok, PropertyName, BinAfterPropertyName} = read_string(Bin),
+    case length(PropertyName) of
+	0 ->
+	    {ok, PropertyMap, BinAfterPropertyName};
+	_ ->
+	    {ok, PropertyValue, BinAfterPropertyValue} = read_object(BinAfterPropertyName),
+	    read_object_property(BinAfterPropertyValue, {dynamic, true}, PropertyMap ++ [{PropertyName, PropertyValue}])
+    end;
+read_object_property(Bin, {dynamic, false}, PropertyMap) when is_list(PropertyMap) ->
+    {ok, PropertyMap, Bin};
 read_object_property(Bin, [], Object) ->
     {ok, Object, Bin};
 read_object_property(Bin, [PropertyStr|Tail], PropertyMap) when is_list(PropertyMap) ->
@@ -264,8 +232,9 @@ read_object_property(Bin, [PropertyStr|Tail], Object) ->
 read_object_with_trait(Bin, TraitObj) when is_record(TraitObj, trait) ->
     case record_utils:fc_to_record(TraitObj#trait.className) of
 	{ok, undefined} ->
-	    {ok, PropertyMap, NextBin} = read_object_property(Bin, TraitObj#trait.properties, []),
-	    {ok, {asObject, PropertyMap}, NextBin};
+	    {ok, PropertyMap, BinAfterProperty} = read_object_property(Bin, TraitObj#trait.properties, []),
+	    {ok, PropertyMapAll, NextBin} = read_object_property(BinAfterProperty, {dynamic, TraitObj#trait.dynamic}, PropertyMap),
+	    {ok, {asObject, PropertyMapAll}, NextBin};
 	{ok, NewObject} ->
 	    read_object_property(Bin, TraitObj#trait.properties, NewObject)
     end.
@@ -282,6 +251,7 @@ read_object(<<?xml_doc_marker:8,   Rest/binary>>) -> {bad, {"Not yet implemented
 read_object(<<?date_marker:8,      Rest/binary>>) -> {bad, {"Not yet implemented marker", Rest}};
 read_object(<<?array_marker:8,     Rest/binary>>) -> read_array(Rest);
 read_object(<<?object_marker:8,    Rest/binary>>)  ->
+    %% io:fwrite("Reading Ref from ~p got value ", [Rest]),
     {ok, Ref, BinAfterRef} = read_uint_29(Rest),
     case Ref band 1 of
 	0 ->
@@ -293,13 +263,17 @@ read_object(<<?object_marker:8,    Rest/binary>>)  ->
 	    % io:fwrite("Trait: ~p~n", [TraitObj]),
 	    case is_type(externalizable, TraitObj#trait.externalizable, TraitObj#trait.className) of
 		true ->
-		    read_object(BinAfterTrait);
+		    {ok, Obj, BinAfterObj} = read_object(BinAfterTrait),
+		    _ = write_object_reference(Obj),
+		    {ok, Obj, BinAfterObj};
 		false ->
 		    {bad, {"Externalizable class not supported", TraitObj}};
 		not_externalizable ->
 		    %% subsequence binary contains values in order of property array in TraitObj
 		    %% object will have the format: {object, [{propertyName=term(), Value}, ...]}
-		    read_object_with_trait(BinAfterTrait, TraitObj)
+		    {ok, Obj, BinAfterObj} = read_object_with_trait(BinAfterTrait, TraitObj),
+		    _ = write_object_reference(Obj),
+		    {ok, Obj, BinAfterObj}
 	    end
     end;
 read_object(<<?xml_marker:8,       Rest/binary>>) -> {bad, {"Not yet implemented marker", Rest}};

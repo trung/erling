@@ -56,9 +56,34 @@ set(Obj, parameters, Value) when is_record(Obj, remoting_message) ->
     {ok, NewObj, {parameters, Value}};
 set(Obj, RpcMessageProperty, Value) when is_record(Obj, remoting_message) and is_atom(RpcMessageProperty) ->
     {ok, NewRpcMessage, _} = set(Obj#remoting_message.parent, RpcMessageProperty, Value),
-    set(Obj, parent, NewRpcMessage).
+    set(Obj, parent, NewRpcMessage);
+
+set(Obj, parent, Value) when is_record(Obj, async_message) and is_record(Value, abstract_message) ->
+    NewObj = Obj#async_message{parent = Value},
+    {ok, NewObj, {parent, Value}};
+set(Obj, correlationId, Value) when is_record(Obj, async_message) ->
+    NewObj = Obj#async_message{correlationId = Value},
+    {ok, NewObj, {correlationId, Value}};
+set(Obj, correlationIdBytes, Value) when is_record(Obj, async_message) ->
+    NewObj = Obj#async_message{correlationIdBytes = Value},
+    {ok, NewObj, {correlationIdBytes, Value}};
+set(Obj, AbstractMessageProperty, Value) when is_record(Obj, async_message) and is_atom(AbstractMessageProperty) ->
+    {ok, NewAbstractMessage, _} = set(Obj#async_message.parent, AbstractMessageProperty, Value),
+    set(Obj, parent, NewAbstractMessage);
+
+set(Obj, parent, Value) when is_record(Obj, command_message) and is_record(Value, async_message) ->
+    NewObj = Obj#command_message{parent = Value},
+    {ok, NewObj, {parent, Value}};
+set(Obj, operation, Value) when is_record(Obj, command_message) ->
+    NewObj = Obj#command_message{operation = Value},
+    {ok, NewObj, {operation, Value}};
+set(Obj, AsyncMessageProperty, Value) when is_record(Obj, command_message) and is_atom(AsyncMessageProperty) ->
+    {ok, NewAsyncMessage, _} = set(Obj#command_message.parent, AsyncMessageProperty, Value),
+    set(Obj, parent, NewAsyncMessage).
+
 
 fc_to_record(?FC_REMOTINGMESSAGE) -> {ok, #remoting_message{}};
+fc_to_record(?FC_COMMANDMESSAGE) -> {ok, #command_message{}};
 fc_to_record(_) -> {ok, undefined}.
 
 %% Convert String to term, Str must be term-like string

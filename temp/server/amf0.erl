@@ -84,8 +84,9 @@ read_long_string(Bin) ->
     {ok, String} = utf8:from_binary(StringBin),
     {ok, String, NextBin}.
 
+%% xml doc is long string
 read_xml(Bin) ->
-    {bad, {"Not yet implemented", ?MODULE, ?LINE, Bin}}.
+    read_long_string(Bin).
 
 read_typed_object(Bin) ->
     {bad, {"Not yet implemented", ?MODULE, ?LINE, Bin}}.

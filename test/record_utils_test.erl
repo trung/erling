@@ -43,42 +43,112 @@ abstract_message_set_clientId_test() ->
 	NewValue = 2,
 	{ok, NewR, _} = record_utils:set(new_record(abstract_message), clientId, NewValue),
 	?assert(is_record(NewR, abstract_message)),
-	?assert(NewR#abstract_message.clientId =:= NewValue).
+	?assertEqual(NewR#abstract_message.clientId ,  NewValue).
 	
 abstract_message_set_destination_test() ->
 	NewValue = "new dest",
 	{ok, NewR, _} = record_utils:set(new_record(abstract_message), destination, NewValue),
 	?assert(is_record(NewR, abstract_message)),
-	?assert(NewR#abstract_message.destination =:= NewValue).
+	?assertEqual(NewR#abstract_message.destination ,  NewValue).
 	
 abstract_message_set_messageId_test() ->
 	NewValue = "some value",
 	{ok, NewR, _} = record_utils:set(new_record(abstract_message), messageId, NewValue),
 	?assert(is_record(NewR, abstract_message)),
-	?assert(NewR#abstract_message.messageId =:= NewValue).
+	?assertEqual(NewR#abstract_message.messageId ,  NewValue).
 
 abstract_message_set_timestamp_test() ->
 	NewValue = 9,
 	{ok, NewR, _} = record_utils:set(new_record(abstract_message), timestamp, NewValue),
 	?assert(is_record(NewR, abstract_message)),
-	?assert(NewR#abstract_message.timestamp =:= NewValue).
+	?assertEqual(NewR#abstract_message.timestamp ,  NewValue).
 
 abstract_message_set_timeToLive_test() ->
 	NewValue = 9,
 	{ok, NewR, _} = record_utils:set(new_record(abstract_message), timeToLive, NewValue),
 	?assert(is_record(NewR, abstract_message)),
-	?assert(NewR#abstract_message.timeToLive =:= NewValue).
+	?assertEqual(NewR#abstract_message.timeToLive ,  NewValue).
 
 abstract_message_set_headers_test() ->
 	NewValue = [{newheader1}, {newheader2}],
 	{ok, NewR, _} = record_utils:set(new_record(abstract_message), headers, NewValue),
 	?assert(is_record(NewR, abstract_message)),
-	?assert(NewR#abstract_message.headers =:= NewValue).
+	?assertEqual(NewR#abstract_message.headers ,  NewValue).
 
 abstract_message_set_body_test() ->
 	NewValue = ["some body"],
 	{ok, NewR, _} = record_utils:set(new_record(abstract_message), body, NewValue),
 	?assert(is_record(NewR, abstract_message)),
-	?assert(NewR#abstract_message.body =:= NewValue).
+	?assertEqual(NewR#abstract_message.body ,  NewValue).
 
+rpc_message_set_parent_test() ->
+	NewValue = new_record(abstract_message),
+	{ok, NewR, _} = record_utils:set(new_record(rpc_message), parent, NewValue),
+	?assert(is_record(NewR, rpc_message)),
+	?assertEqual(NewR#rpc_message.parent ,  NewValue).
 
+rpc_message_set_remoteUsername_test() ->
+	NewValue = "newremoteuser",
+	{ok, NewR, _} = record_utils:set(new_record(rpc_message), remoteUsername, NewValue),
+	?assert(is_record(NewR, rpc_message)),
+	?assertEqual(NewR#rpc_message.remoteUsername ,  NewValue).
+
+rpc_message_set_remotePassword_test() ->
+	NewValue = "newremotepassword",
+	{ok, NewR, _} = record_utils:set(new_record(rpc_message), remotePassword, NewValue),
+	?assert(is_record(NewR, rpc_message)),
+	?assertEqual(NewR#rpc_message.remotePassword, NewValue).
+
+remoting_message_set_parent_test() ->
+	NewValue = new_record(rpc_message),
+	{ok, NewR, _} = record_utils:set(new_record(remoting_message), parent, NewValue),
+	?assert(is_record(NewR, remoting_message)),
+	?assertEqual(NewR#remoting_message.parent, NewValue).
+
+remoting_message_set_source_test() ->
+	NewValue = "newsource",
+	{ok, NewR, _} = record_utils:set(new_record(remoting_message), source, NewValue),
+	?assert(is_record(NewR, remoting_message)),
+	?assertEqual(NewR#remoting_message.source, NewValue).
+
+remoting_message_set_operation_test() ->
+	NewValue = "newoperation",
+	{ok, NewR, _} = record_utils:set(new_record(remoting_message), operation, NewValue),
+	?assert(is_record(NewR, remoting_message)),
+	?assertEqual(NewR#remoting_message.operation, NewValue).
+
+remoting_message_set_parameters_test() ->
+	NewValue = [{newparam, 1}],
+	{ok, NewR, _} = record_utils:set(new_record(remoting_message), parameters, NewValue),
+	?assert(is_record(NewR, remoting_message)),
+	?assertEqual(NewR#remoting_message.parameters, NewValue).
+
+async_message_set_parent_test() ->
+	NewValue = new_record(abstract_message),
+	{ok, NewR, _} = record_utils:set(new_record(async_message), parent, NewValue),
+	?assert(is_record(NewR, async_message)),
+	?assertEqual(NewR#async_message.parent, NewValue).
+
+async_message_set_correlationId_test() ->
+	NewValue = 12,
+	{ok, NewR, _} = record_utils:set(new_record(async_message), correlationId, NewValue),
+	?assert(is_record(NewR, async_message)),
+	?assertEqual(NewR#async_message.correlationId, NewValue).
+
+async_message_set_correlationIdBytes_test() ->
+	NewValue = [1,2,3],
+	{ok, NewR, _} = record_utils:set(new_record(async_message), correlationIdBytes, NewValue),
+	?assert(is_record(NewR, async_message)),
+	?assertEqual(NewR#async_message.correlationIdBytes, NewValue).
+
+command_message_set_parent_test() ->
+	NewValue = new_record(async_message),
+	{ok, NewR, _} = record_utils:set(new_record(command_message), parent, NewValue),
+	?assert(is_record(NewR, command_message)),
+	?assertEqual(NewR#command_message.parent, NewValue).
+	
+command_message_set_operation_test() ->
+	NewValue = ?CLIENT_PING_OPERATION,
+	{ok, NewR, _} = record_utils:set(new_record(command_message), operation, NewValue),
+	?assert(is_record(NewR, command_message)),
+	?assertEqual(NewR#command_message.operation, NewValue).

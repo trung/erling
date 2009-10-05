@@ -3,7 +3,7 @@ all:
 	(cd test;$(MAKE))
 
 test: all
-	$(foreach var, $(patsubst ebin/%.beam,%,$(wildcard ebin/*_test.beam)), erl -noshell -pa ebin -s $(var) test -s init stop)
+	for f in $(patsubst ebin/%.beam,%,$(wildcard ebin/*_test.beam)) ; do echo "Running $$f" ; erl -noshell -pa ebin -s $$f test -s init stop ; done
 
 docs:
 	erl -pa `pwd`/ebin \

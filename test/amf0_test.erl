@@ -5,7 +5,7 @@
 -author("trung@mdkt.org").
 
 -include_lib("eunit/include/eunit.hrl").
-
+-include ("../include/types.hrl").
 -compile(export_all).
 
 %%
@@ -46,25 +46,26 @@ number_test() ->
     ?assertEqual(ExpectedValue, ActualValue).
 
 string_test() ->
-    ExpectedValue = "nguyen Kien trung",
+    ExpectedValue = #string{data = "nguyen Kien trung"},
     {ok, Bin} = amf0:write_string(marker, ExpectedValue),
     ?assert(Bin /= <<>>),
     {ok, ActualValue, _Rest} = amf0:read_object(Bin),
-    ?assertEqual(ExpectedValue, ActualValue).
+	?assert(is_record(ActualValue, string)),
+    ?assertEqual(ExpectedValue#string.data, ActualValue#string.data).
 
 long_string_test() ->
-    ExpectedValue = "nguyen Kien trung",
+    ExpectedValue = #long_string{data = "nguyen Kien trung"},
     {ok, Bin} = amf0:write_long_string(marker, ExpectedValue),
     ?assert(Bin /= <<>>),
     {ok, ActualValue, _Rest} = amf0:read_object(Bin),
-    ?assertEqual(ExpectedValue, ActualValue).
+    ?assertEqual(ExpectedValue#long_string.data, ActualValue#long_string.data).
 
 xml_test() ->
-    ExpectedValue = "<xml><a></a></xml>",
+    ExpectedValue = #xml{data = "<xml><a></a></xml>"},
     {ok, Bin} = amf0:write_xml(marker, ExpectedValue),
     ?assert(Bin /= <<>>),
     {ok, ActualValue, _Rest} = amf0:read_object(Bin),
-    ?assertEqual(ExpectedValue, ActualValue).
+    ?assertEqual(ExpectedValue#xml.data, ActualValue#xml.data).
 
 date_test() ->
     ExpectedValue = {{2009, 12, 12}, {12, 30, 40}},

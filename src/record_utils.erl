@@ -4,6 +4,7 @@
 
 -include("../include/messages.hrl").
 -include("../include/flex_classes.hrl").
+-include ("../include/types.hrl").
 
 %% Setters for records defined in messages.hrl file
 %% return {ok, NewObject, {propertyName, NewValue}}
@@ -82,12 +83,12 @@ set(Obj, AsyncMessageProperty, Value) when is_record(Obj, command_message) and i
     set(Obj, parent, NewAsyncMessage).
 
 
-fc_to_record(?FC_REMOTINGMESSAGE) -> {ok, #remoting_message{}};
-fc_to_record(?FC_COMMANDMESSAGE) -> {ok, #command_message{}};
+fc_to_record(#string_3{data = ?FC_REMOTINGMESSAGE}) -> {ok, #remoting_message{}};
+fc_to_record(#string_3{data = ?FC_COMMANDMESSAGE})  -> {ok, #command_message{}};
 fc_to_record(_) -> {ok, undefined}.
 
 %% Convert String to term, Str must be term-like string
-to_term(Str) ->
+to_term(#string_3{data = Str}) ->
     {ok, Tokens, _} = erl_scan:string(Str), 
     {ok, Term} = erl_parse:parse_term(Tokens ++ [{dot,1}]),
     Term.

@@ -6,6 +6,7 @@
 -include("../include/action_message.hrl").
 -include("../include/messages.hrl").
 -include("../include/flex_classes.hrl").
+-include("../include/types.hrl").
 
 -define(undefined_marker, 16#00).
 -define(null_marker,      16#01).
@@ -74,7 +75,7 @@ write_trait_reference(Obj) ->
     {ok, Ref, Obj}.
 
 %% Not store if string is empty
-write_string_reference(Str) when length(Str) == 0 ->
+write_string_reference(Str) when length(Str#string_3.data) == 0 ->
     {ok, -1, Str};
 %% Return {ok, Ref, Str}
 write_string_reference(Str) ->
@@ -116,15 +117,16 @@ read_string(Bin) ->
     RefIndex = Ref bsr 1,
     case Ref band 1 of
 	0 ->
-	    {ok, Str} = read_string_reference(RefIndex),
-	    {ok, Str, BinAfterRef};
+	    {ok, StrObj} = read_string_reference(RefIndex),
+	    {ok, StrObj, BinAfterRef};
 	_ ->
 	    StrLen = RefIndex,
 	    {StrBin, BinAfterStrBin} = split_binary(BinAfterRef, StrLen),	    
 	    {ok, Str} = binary_to_utf8(StrBin),
+		StrObj = #string_3{data = Str},
 	    %% io:fwrite("StrLen: ~p~nBinString: ~n~p~nString: ~p~n", [StrLen, StrBin, Str]),
-	    {ok, _, _} = write_string_reference(Str),
-	    {ok, Str, BinAfterStrBin}
+	    {ok, _, _} = write_string_reference(StrObj),
+	    {ok, StrObj, BinAfterStrBin}
     end.
 
 read_properties(Bin, Count, Total, Acc) when Count == Total ->
@@ -170,11 +172,11 @@ read_associative_array_ext(Bin, Count, Total, Acc) ->
 read_associative_array(Bin, Acc) ->
     {ok, Key, BinAfterKey} = read_string(Bin),
     if 
-	length(Key) == 0 ->
-	    {ok, Acc, BinAfterKey};
-	true ->
-	    {ok, Value, BinAfterValue} = read_object(BinAfterKey),
-	    read_associative_array(BinAfterValue, Acc ++ [{Key, Value}])
+		length(Key#string_3.data) == 0 ->
+	    	{ok, Acc, BinAfterKey};
+		true ->
+	    	{ok, Value, BinAfterValue} = read_object(BinAfterKey),
+	    	read_associative_array(BinAfterValue, Acc ++ [{Key, Value}])
     end.
 
 %% Return {ok, Map=[{Key, Value}, ...], Rest} 
@@ -204,14 +206,14 @@ read_array(Bin) ->
 	    end
     end.
 
-is_type(externalizable, true, ?FC_ARRAYCOLLECTION) -> true;
-is_type(externalizable, true, ?FC_OBJECTPROXY) -> true;
+is_type(externalizable, true, #string_3{data = ?FC_ARRAYCOLLECTION}) -> true;
+is_type(externalizable, true, #string_3{data = ?FC_OBJECTPROXY}) -> true;
 is_type(externalizable, true, _) -> false;
 is_type(externalizable, false, _) -> not_externalizable.
 
 read_object_property(Bin, {dynamic, true}, PropertyMap) when is_list(PropertyMap) ->
     {ok, PropertyName, BinAfterPropertyName} = read_string(Bin),
-    case length(PropertyName) of
+    case length(PropertyName#string_3.data) of
 	0 ->
 	    {ok, PropertyMap, BinAfterPropertyName};
 	_ ->
@@ -236,7 +238,7 @@ read_object_with_trait(Bin, TraitObj) when is_record(TraitObj, trait) ->
 	{ok, undefined} ->
 	    {ok, PropertyMap, BinAfterProperty} = read_object_property(Bin, TraitObj#trait.properties, []),
 	    {ok, PropertyMapAll, NextBin} = read_object_property(BinAfterProperty, {dynamic, TraitObj#trait.dynamic}, PropertyMap),
-	    {ok, {asObject, PropertyMapAll}, NextBin};
+	    {ok, #asobject{data = PropertyMapAll}, NextBin};
 	{ok, NewObject} ->
 	    read_object_property(Bin, TraitObj#trait.properties, NewObject)
     end.

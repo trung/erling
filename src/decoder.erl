@@ -1,4 +1,4 @@
--module(deserializer).
+-module(decoder).
 -author("trung@mdkt.org").
 
 -export([read/1]).

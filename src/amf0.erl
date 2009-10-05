@@ -7,6 +7,7 @@
 -compile(export_all).
 
 -include("../include/action_message.hrl").
+-include("../include/types.hrl").
 
 -define(number_marker, 16#00).
 -define(boolean_marker, 16#01).
@@ -26,6 +27,10 @@
 -define(xml_document_marker, 16#0F).
 -define(typed_object_marker, 16#10).
 -define(avm_plus_object_marker, 16#11). %% define AMF3 must be used
+
+len(Str) when is_record(Str, string) -> length(Str#string.data);
+len(Str) when is_record(Str, long_string) -> length(Str#long_string.data);
+len(Str) -> length(Str).
 
 %% Clear ETS tables
 reset() ->
@@ -59,7 +64,7 @@ read_string(Bin) ->
     {ok, StringLen, Rest} = read_u16(Bin),
     {StringBin, Rest1} = split_binary(Rest, StringLen),
     {ok, String} = utf8:from_binary(StringBin),
-    {ok, String, Rest1}.
+    {ok, #string{data = String}, Rest1}.
 
 read_number(<<Value/float, Rest/binary>>) ->
     {ok, Value, Rest};
@@ -99,11 +104,12 @@ read_long_string(Bin) ->
     {ok, StringLen, BinAfterLen} = read_u32(Bin),
     {StringBin, NextBin} = split_binary(BinAfterLen, StringLen),
     {ok, String} = utf8:from_binary(StringBin),
-    {ok, String, NextBin}.
+    {ok, #long_string{data = String}, NextBin}.
 
 %% xml doc is long string
 read_xml(Bin) ->
-    read_long_string(Bin).
+    {ok, LongString, NextBin} = read_long_string(Bin),
+	{ok, #xml{data = LongString#long_string.data}, NextBin}.
 
 read_typed_object(Bin) ->
     {ok, _ClassName, _BinAfterClassName} = read_string(Bin),
@@ -116,7 +122,7 @@ read_objects_until_end(Bin, Acc) ->
     {ok, Name, BinAfterName} = read_string(Bin),
     case read_object(BinAfterName) of
 	{object_end_marker, NextBin, _} ->
-	    {ok, Acc, NextBin};
+	    {ok, #ecma_array{data = Acc}, NextBin};
 	{ok, Obj, NextBin} ->
 	    %% Always read value but be careful to ignore erroneous 'length' prop 
 	    %% that is sometimes sent by the player. (via BlazeDS)
@@ -167,6 +173,24 @@ read_object(<<?avm_plus_object_marker:8, Rest/binary>>) -> amf3:read_object(Rest
 %% Use xxx(marker, Value) to build binary with marker
 %% ===========================================================
 
+write_object(marker, Value) ->
+    {ok, Bin} = write_object(Value),
+    write_object_now(?object_marker, Bin).
+
+write_object(null) -> write_null();
+write_object(true) -> write_boolean(true);
+write_object(false) -> write_boolean(false);
+write_object(Number) when is_number(Number) -> write_number(Number);
+write_object(String) when is_record(String, string) -> write_string(String);
+write_object(LongString) when is_record(LongString, long_string) -> write_long_string(LongString);
+write_object(EcmaArray) when is_record(EcmaArray, ecma_array) -> write_ecma_array(EcmaArray);
+write_object({{Y, M, D}, {H, M, S}}) -> write_date({{Y, M, D}, {H, M, S}});
+write_object(Xml) when is_record(Xml, xml) -> write_xml(Xml);
+write_object(Obj) -> {bad, {"Unknown object", Obj}}.
+
+
+
+
 %% return {ok, ReturnBin} or {bad, Reason}
 write_u8(Value)  -> {ok, <<Value:8>>}.
 
@@ -189,11 +213,11 @@ write_string(marker, Value) ->
     write_object_now(?string_marker, Bin).
 
 %% write UTF-8-empty
-write_string(Value) when length(Value) == 0 ->
+write_string(#string{data = Value}) when length(Value) == 0 ->
     write_u16(0);
 
 %% write utf8 string to binary
-write_string(Value) ->
+write_string(#string{data = Value}) ->
     Len = length(Value),
     {ok, LenBin} = write_u16(Len),
     {ok, StringBin} = utf8:to_binary(Value),
@@ -204,7 +228,7 @@ write_long_string(marker, Value) ->
     write_object_now(?long_string_marker, Bin).
 
 %% write utf8 long string to binary
-write_long_string(Value) ->
+write_long_string(#long_string{data = Value}) ->
     Len = length(Value),
     {ok, LenBin} = write_u32(Len),
     {ok, StringBin} = utf8:to_binary(Value),
@@ -214,8 +238,8 @@ write_xml(marker, Value) ->
     {ok, Bin} = write_xml(Value),
     write_object_now(?xml_document_marker, Bin).
 
-write_xml(Value) -> 
-    write_long_string(Value).
+write_xml(#xml{data = Value}) -> 
+    write_long_string(#long_string{data = Value}).
 
 write_date(marker, Value) ->
     {ok, Bin} = write_date(Value),
@@ -240,13 +264,6 @@ write_strict_array(marker, Value) ->
 write_strict_array(Value) ->
     {bad, {"Not yet implemented", ?MODULE, ?LINE}}.
 
-write_object(marker, Value) ->
-    {ok, Bin} = write_object(Value),
-    write_object_now(?object_marker, Bin).
-
-write_object(null) -> write_null();
-write_object(Obj) -> {bad, {"Unknown object", Obj}}.
-
 write_typed_object(marker, Value) ->
     {ok, Bin} = write_typed_object(Value),
     write_object_now(?typed_object_marker, Bin).
@@ -270,7 +287,7 @@ write_ecma_array_item({Name, Value}) ->
     {ok, ValueBin} = write_object(marker, Value),
     [NameBin, ValueBin].
 
-write_ecma_array(Value) ->
+write_ecma_array(#ecma_array{data = Value}) ->
     {ok, LenBin} = write_u32(0),
     ArrayBin = [write_ecma_array_item(X) || X <- Value],
     {ok, ObjectEndBin} = write_object_end(),

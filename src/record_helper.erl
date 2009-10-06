@@ -16,7 +16,7 @@ make(HeaderFiles, OutDir) ->
 	++ "-compile(export_all).\n"
 	++ [ "-include(\"" ++ X ++ "\").\n" || X <- HeaderFiles ]
 	++ "\n",
-    Src = format_src(lists:sort(lists:flatten([read(X) || X <- HeaderFiles]))),
+    Src = format_src(lists:sort(lists:flatten([read(X) || X <- HeaderFiles] ++ [generate_type_default_function()]))),
     file:write_file(OutDir++"/" ++ ModuleName ++ ".erl", list_to_binary([HeaderComment, ModuleDeclaration, Src])).
 
 read(HeaderFile) ->
@@ -44,12 +44,12 @@ parse_record({attribute, _, record, RecordInfo}) ->
     {RecordName, RecordFields} = RecordInfo,
     if
 	length(RecordFields) == 1 ->
-	    lists:flatten([ generate_setter_function(RecordName, X) || X <- RecordFields ]
+	    lists:flatten([ generate_setter_getter_function(RecordName, X) || X <- RecordFields ]
 		  ++ [generate_type_function(RecordName)]);
 	true ->
 	    lists:flatten([generate_fields_function(RecordName, RecordFields)] 
 			  ++ [generate_fields_atom_function(RecordName, RecordFields)]
-		  ++ [ generate_setter_function(RecordName, X) || X <- RecordFields ]
+			  ++ [ generate_setter_getter_function(RecordName, X) || X <- RecordFields ]
 		  ++ [generate_type_function(RecordName)])
     end;
 parse_record(_) -> [].
@@ -72,6 +72,9 @@ parse_field_atom([F|T]) when length(T) == 0 -> parse_field_name_atom(F);
 parse_field_atom([F|T]) ->
     parse_field_name_atom(F) ++ ", " ++ parse_field_atom(T).
 
+generate_type_default_function() ->
+	{type, zzz, 99, "type(_) -> undefined"}.
+
 generate_type_function(RecordName) ->
     {type, RecordName, 0, "type(Obj) when is_record(Obj, " ++ atom_to_list(RecordName) ++ ") -> " ++ atom_to_list(RecordName)}.
 
@@ -83,31 +86,47 @@ generate_fields_atom_function(RecordName, RecordFields) ->
     Fields = parse_field_atom(RecordFields),
     {field_atom, RecordName, 1, "fields_atom(" ++ atom_to_list(RecordName) ++ ") -> \n\t[" ++ Fields ++ "]"}.
 
-generate_setter_function(RecordName, {record_field, _, {atom, _, FieldName}, {record, _, ParentRecordName, _}}) ->
-    to_setter_function(atom_to_list(RecordName), atom_to_list(FieldName), atom_to_list(ParentRecordName));
-generate_setter_function(RecordName, {record_field, _, {atom, _, array}, _}) ->
-    to_setter_function(atom_to_list(RecordName));
-generate_setter_function(RecordName, {record_field, _, {atom, _, FieldName}, _}) ->
-    to_setter_function(atom_to_list(RecordName), atom_to_list(FieldName));
-generate_setter_function(RecordName, {record_field, _, {atom, _, FieldName}}) ->
-    to_setter_function(atom_to_list(RecordName), atom_to_list(FieldName)).
+generate_setter_getter_function(RecordName, {record_field, _, {atom, _, FieldName}, {record, _, ParentRecordName, _}}) ->
+    to_setter_getter_function(atom_to_list(RecordName), atom_to_list(FieldName), atom_to_list(ParentRecordName));
+generate_setter_getter_function(RecordName, {record_field, _, {atom, _, array}, _}) ->
+    to_setter_getter_function(atom_to_list(RecordName));
+generate_setter_getter_function(RecordName, {record_field, _, {atom, _, FieldName}, _}) ->
+    to_setter_getter_function(atom_to_list(RecordName), atom_to_list(FieldName));
+generate_setter_getter_function(RecordName, {record_field, _, {atom, _, FieldName}}) ->
+    to_setter_getter_function(atom_to_list(RecordName), atom_to_list(FieldName)).
 
 %% when field name is array of object
-to_setter_function(RecordName) ->
-    {setter, RecordName, 1, "set(Obj, PropertyName, Value) when is_record(Obj, " ++ RecordName ++ ") -> \n"
+to_setter_getter_function(RecordName) ->
+    [{setter, RecordName, 1, "set(Obj, PropertyName, Value) when is_record(Obj, " ++ RecordName ++ ") -> \n"
 	++ "\tNewObj = #" ++ RecordName ++ "{array = Obj#" ++ RecordName ++ ".array ++ [{PropertyName, Value}]},\n" 
-	++ "\t{ok, NewObj, {array, Value}}"}.    
+	++ "\t{ok, NewObj, {array, Value}}"},
+	{getter, RecordName, 1, "get(Obj, PropertyName) when is_record(Obj, " ++ RecordName ++ ") -> \n"
+	++ "\tRet = [X || {P, X} <- Obj#" ++ RecordName ++ ".array, P == PropertyName],\n"
+	++ "\tif\n"
+	++ "\t\tlength(Ret) == 0 -> {bad, {\"PropertyName not found in the object\", Obj, PropertyName}};\n"
+	++ "\t\ttrue -> \n"
+	++ "\t\t\t[Value|_] = Ret,\n"
+	++ "\t{ok, Value}\n" 
+	++ "\tend"}
+	].    
 
-to_setter_function(RecordName, FieldName) ->
-    %% setters
-    {setter, RecordName, 1, "set(Obj, " ++ FieldName ++ ", Value) when is_record(Obj, " ++ RecordName ++ ") -> \n"
+to_setter_getter_function(RecordName, FieldName) ->
+    [{setter, RecordName, 1, "set(Obj, " ++ FieldName ++ ", Value) when is_record(Obj, " ++ RecordName ++ ") -> \n"
 	++ "\tNewObj = Obj#" ++ RecordName ++ "{" ++ FieldName ++ " = Value},\n" 
-	++ "\t{ok, NewObj, {" ++ FieldName ++ ", Value}}"}.
+	++ "\t{ok, NewObj, {" ++ FieldName ++ ", Value}}"},
+	{getter, RecordName, 1, "get(Obj, " ++ FieldName ++ ") when is_record(Obj, " ++ RecordName ++ ") -> \n"
+	++ "\t{ok, Obj#" ++ RecordName ++ "." ++ FieldName ++ "}"}
+	].
 
-to_setter_function(RecordName, FieldName, ParentRecordName) ->
-    {setter, RecordName, 2, "set(Obj, " ++ FieldName ++ ", Value) when is_record(Obj, " ++ RecordName ++ ") and is_record(Value, " ++ ParentRecordName ++ ") -> \n"
+to_setter_getter_function(RecordName, FieldName, ParentRecordName) ->
+    [{setter, RecordName, 2, "set(Obj, " ++ FieldName ++ ", Value) when is_record(Obj, " ++ RecordName ++ ") and is_record(Value, " ++ ParentRecordName ++ ") -> \n"
      ++ "\tNewObj = Obj#" ++ RecordName ++ "{" ++ FieldName ++ " = Value},\n" 
      ++ "\t{ok, NewObj, {" ++ FieldName ++ ", Value}};\n\n" 
      ++ "set(Obj, ParentProperty, Value) when is_record(Obj, " ++ RecordName ++ ") and is_atom(ParentProperty) -> \n"
      ++ "\t{ok, NewParentObject, _} = set(Obj#" ++ RecordName ++ ".parent, ParentProperty, Value),\n" 
-     ++ "\tset(Obj, parent, NewParentObject)"}.
+     ++ "\tset(Obj, parent, NewParentObject)"},
+	{getter, RecordName, 2, "get(Obj, " ++ FieldName ++ ") when is_record(Obj, " ++ RecordName ++ ") -> \n"
+	 ++ "\t{ok, Obj#" ++ RecordName ++ "." ++ FieldName ++ "};\n\n"
+     ++ "get(Obj, ParentProperty) when is_record(Obj, " ++ RecordName ++ ") and is_atom(ParentProperty) -> \n"
+     ++ "\tget(Obj#" ++ RecordName ++ ".parent, ParentProperty)"}
+	].

@@ -211,7 +211,7 @@ write_object(Obj) ->
 		Type ->
 		    Fields = record_utils:fields_atom(Type),
 		    ObjBin = list_to_binary([write_object_info(Obj, X) || X <- Fields ]),
-		    ObjEnd = write_object_end(),
+		    {ok, ObjEnd} = write_object_end(),
 		    write_object_now(?typed_object_marker, [ClassNameBin, ObjBin, ObjEnd])
 	    end
     end.
@@ -221,9 +221,13 @@ write_object(amf3, Obj) -> amf3:write_object(Obj).
 
 write_object_info(Obj, Field) ->
     {ok, FieldBin} = write_string(#string{data = atom_to_list(Field)}),
-    {ok, Value} = record_utils:get(Obj, Field),
-    {ok, ValueBin} = write_object(Value),
-    [FieldBin, ValueBin].
+    case record_utils:get(Obj, Field) of
+		{ok, undefined} ->
+			[];
+		{ok, Value} ->
+    		{ok, ValueBin} = write_object(Value),
+    		[FieldBin, ValueBin]
+	end.
 
 %% return {ok, ReturnBin} or {bad, Reason}
 write_u8(Value)  -> {ok, <<Value:8>>}.
@@ -308,7 +312,7 @@ strict_array_to_binary(Value) ->
     {ok, list_to_binary([LenBin, ObjBinArray])}.
 
 write_typed_object(Value) ->
-    {bad, {"Not yet implemented", ?MODULE, ?LINE}}.
+    {bad, {"Not yet implemented", Value, ?MODULE, ?LINE}}.
 
 write_reference(Value) ->
     {ok, Bin} = reference_to_binary(Value),
@@ -330,7 +334,7 @@ ecma_array_to_binary(#ecma_array{data = Value}) ->
     {ok, LenBin} = write_u32(0),
     ArrayBin = [write_ecma_array_item(X) || X <- Value],
     {ok, ObjectEndBin} = write_object_end(),
-    {ok, list_to_binary([ArrayBin ++ [ObjectEndBin]])}.
+    {ok, list_to_binary([LenBin, ArrayBin, ObjectEndBin])}.
     
 write_null() ->
     {ok, <<?null_marker:8>>}.

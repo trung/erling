@@ -14,34 +14,34 @@
 
 -record(abstract_message, {
 	  clientId,
-	  destination = "",
-	  messageId = "",
-	  timestamp = 0,
-	  timeToLive = 0,
-	  headers = [],
+	  destination,
+	  messageId,
+	  timestamp,
+	  timeToLive,
+	  headers,
 	  body
 	 }).
 
 -record(rpc_message, {
 	  parent = #abstract_message{},
-	  remoteUsername = "",
-	  remotePassword = ""
+	  remoteUsername,
+	  remotePassword
 	 }).
 
 -record(remoting_message, {
 	  parent = #rpc_message{},
-	  source = "",
-	  operation = "",
-	  parameters = []
+	  source,
+	  operation,
+	  parameters
 	 }).
 
 -record(async_message, {
 	  parent = #abstract_message{},
-	  correlationId = "",
-	  correlationIdBytes = []
+	  correlationId,
+	  correlationIdBytes
 	 }).
 
 -record(command_message, {
 	  parent = #async_message{},
-	  operation = ?UNKNOWN_OPERATION
+	  operation
 	 }).

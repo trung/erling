@@ -55,18 +55,35 @@ parse_record({attribute, _, record, RecordInfo}) ->
 parse_record(_) -> [].
 
 parse_field_name({record_field, _, {atom, _, FieldName}}) ->
-    "\"" ++ atom_to_list(FieldName) ++ "\"";
+    {field, "\"" ++ atom_to_list(FieldName) ++ "\""};
+parse_field_name({record_field, _, {atom, _, _FieldName}, {record, _, ParentRecordName, _}}) ->
+	{parent_field, "fields(" ++ atom_to_list(ParentRecordName) ++ ")"};
 parse_field_name({record_field, _, {atom, _, FieldName}, _}) ->
-    "\"" ++ atom_to_list(FieldName) ++ "\"".
+    {field, "\"" ++ atom_to_list(FieldName) ++ "\""}.
 
 parse_field_name_atom({record_field, _, {atom, _, FieldName}}) ->
     atom_to_list(FieldName);
+parse_field_name_atom({record_field, _, {atom, _, _FieldName}, {record, _, ParentRecordName, _}}) ->
+	"fields_atom(" ++ atom_to_list(ParentRecordName) ++ ")";
 parse_field_name_atom({record_field, _, {atom, _, FieldName}, _}) ->
     atom_to_list(FieldName).
 
-parse_field([F|T]) when length(T) == 0 -> parse_field_name(F);
-parse_field([F|T]) ->
-    parse_field_name(F) ++ ", " ++ parse_field(T).
+concat([], _S) -> [];
+concat([F|T], _S) when length(T) == 0 -> F;
+concat([F|T], S) -> F ++ S ++ concat(T, S).
+
+concat_ext([], _S) -> [];
+concat_ext([F|T], S) -> F ++ S ++ concat_ext(T, S).
+
+parse_field([], AccFields, AccParentFields) -> concat_ext(AccParentFields, " ++ ") ++ "[" ++ concat(AccFields, ", ") ++ "]";
+%parse_field([F|T], AccFields, AccParentFields) when length(T) == 0 -> parse_field_name(F);
+parse_field([F|T], AccFields, AccParentFields) ->
+	case parse_field_name(F) of
+		{field, Field} ->
+			parse_field(T, AccFields ++ [Field], AccParentFields);
+		{parent_field, PField} ->
+			parse_field(T, AccFields, AccParentFields ++ [PField])
+	end.
 
 parse_field_atom([F|T]) when length(T) == 0 -> parse_field_name_atom(F);
 parse_field_atom([F|T]) ->
@@ -79,12 +96,12 @@ generate_type_function(RecordName) ->
     {type, RecordName, 0, "type(Obj) when is_record(Obj, " ++ atom_to_list(RecordName) ++ ") -> " ++ atom_to_list(RecordName)}.
 
 generate_fields_function(RecordName, RecordFields) ->
-    Fields = parse_field(RecordFields),
-    {field, RecordName, 1, "fields(" ++ atom_to_list(RecordName) ++ ") -> \n\t[" ++ Fields ++ "]"}.
+    Fields = parse_field(RecordFields, [], []),
+    {field, RecordName, 1, "fields(" ++ atom_to_list(RecordName) ++ ") -> \n\t" ++ Fields}.
 
 generate_fields_atom_function(RecordName, RecordFields) ->
     Fields = parse_field_atom(RecordFields),
-    {field_atom, RecordName, 1, "fields_atom(" ++ atom_to_list(RecordName) ++ ") -> \n\t[" ++ Fields ++ "]"}.
+    {field_atom, RecordName, 1, "fields_atom(" ++ atom_to_list(RecordName) ++ ") -> \n\tlists:flatten([" ++ Fields ++ "])"}.
 
 generate_setter_getter_function(RecordName, {record_field, _, {atom, _, FieldName}, {record, _, ParentRecordName, _}}) ->
     to_setter_getter_function(atom_to_list(RecordName), atom_to_list(FieldName), atom_to_list(ParentRecordName));

@@ -199,19 +199,20 @@ write_object({{Ye, Mo, Da}, {Ho, Mi, Se}}) -> write_date({{Ye, Mo, Da}, {Ho, Mi,
 write_object(Xml) when is_record(Xml, xml) -> write_xml(Xml);
 write_object(Array) when is_list(Array) -> write_strict_array(Array);
 write_object(Obj) -> 
-    case registry:record_to_fc(Obj) of
+	ObjType = record_utils:type(Obj),
+    case registry:record_to_fc(ObjType) of
 	{ok, undefined} ->
-	    {bad, {"Unknown object", ?MODULE, ?LINE}};
+	    {bad, {"Unknown object", ObjType, ?MODULE, ?LINE}};
 	{ok, ClassName} ->
 	    {ok, ClassNameBin} = write_string(#string{data = ClassName}),
-	    case record_utils:type(Obj) of
+	    case ObjType of
+		undefined ->
+			{bad, {"Object type not found even it was registered", ClassName, Obj}};
 		Type ->
 		    Fields = record_utils:fields_atom(Type),
 		    ObjBin = list_to_binary([write_object_info(Obj, X) || X <- Fields ]),
 		    ObjEnd = write_object_end(),
-		    write_object_now(?typed_object_marker, [ClassNameBin, ObjBin, ObjEnd]);
-		_ ->
-		    {bad, {"Object type not found even it was registered", ClassName, Obj}}
+		    write_object_now(?typed_object_marker, [ClassNameBin, ObjBin, ObjEnd])
 	    end
     end.
 

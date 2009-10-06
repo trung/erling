@@ -238,7 +238,7 @@ read_object_with_trait(Bin, TraitObj) when is_record(TraitObj, trait) ->
 	{ok, undefined} ->
 	    {ok, PropertyMap, BinAfterProperty} = read_object_property(Bin, TraitObj#trait.properties, []),
 	    {ok, PropertyMapAll, NextBin} = read_object_property(BinAfterProperty, {dynamic, TraitObj#trait.dynamic}, PropertyMap),
-	    {ok, #asobject{data = PropertyMapAll}, NextBin};
+	    {ok, #asobject{array = PropertyMapAll}, NextBin};
 	{ok, NewObject} ->
 	    read_object_property(Bin, TraitObj#trait.properties, NewObject)
     end.

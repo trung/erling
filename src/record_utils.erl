@@ -10,31 +10,124 @@ fields(abstract_message) ->
 	["clientId", "destination", "messageId", "timestamp", "timeToLive", "headers", "body"];
 
 fields(async_message) -> 
-	["parent", "correlationId", "correlationIdBytes"];
+	fields(abstract_message) ++ ["correlationId", "correlationIdBytes"];
 
 fields(command_message) -> 
-	["parent", "operation"];
+	fields(async_message) ++ ["operation"];
 
 fields(remoting_message) -> 
-	["parent", "source", "operation", "parameters"];
+	fields(rpc_message) ++ ["source", "operation", "parameters"];
 
 fields(rpc_message) -> 
-	["parent", "remoteUsername", "remotePassword"].
+	fields(abstract_message) ++ ["remoteUsername", "remotePassword"].
 
 fields_atom(abstract_message) -> 
-	[clientId, destination, messageId, timestamp, timeToLive, headers, body];
+	lists:flatten([clientId, destination, messageId, timestamp, timeToLive, headers, body]);
 
 fields_atom(async_message) -> 
-	[parent, correlationId, correlationIdBytes];
+	lists:flatten([fields_atom(abstract_message), correlationId, correlationIdBytes]);
 
 fields_atom(command_message) -> 
-	[parent, operation];
+	lists:flatten([fields_atom(async_message), operation]);
 
 fields_atom(remoting_message) -> 
-	[parent, source, operation, parameters];
+	lists:flatten([fields_atom(rpc_message), source, operation, parameters]);
 
 fields_atom(rpc_message) -> 
-	[parent, remoteUsername, remotePassword].
+	lists:flatten([fields_atom(abstract_message), remoteUsername, remotePassword]).
+
+get(Obj, body) when is_record(Obj, abstract_message) -> 
+	{ok, Obj#abstract_message.body};
+
+get(Obj, clientId) when is_record(Obj, abstract_message) -> 
+	{ok, Obj#abstract_message.clientId};
+
+get(Obj, destination) when is_record(Obj, abstract_message) -> 
+	{ok, Obj#abstract_message.destination};
+
+get(Obj, headers) when is_record(Obj, abstract_message) -> 
+	{ok, Obj#abstract_message.headers};
+
+get(Obj, messageId) when is_record(Obj, abstract_message) -> 
+	{ok, Obj#abstract_message.messageId};
+
+get(Obj, timeToLive) when is_record(Obj, abstract_message) -> 
+	{ok, Obj#abstract_message.timeToLive};
+
+get(Obj, timestamp) when is_record(Obj, abstract_message) -> 
+	{ok, Obj#abstract_message.timestamp};
+
+get(Obj, PropertyName) when is_record(Obj, asobject) -> 
+	Ret = [X || {P, X} <- Obj#asobject.array, P == PropertyName],
+	if
+		length(Ret) == 0 -> {bad, {"PropertyName not found in the object", Obj, PropertyName}};
+		true -> 
+			[Value|_] = Ret,
+	{ok, Value}
+	end;
+
+get(Obj, correlationId) when is_record(Obj, async_message) -> 
+	{ok, Obj#async_message.correlationId};
+
+get(Obj, correlationIdBytes) when is_record(Obj, async_message) -> 
+	{ok, Obj#async_message.correlationIdBytes};
+
+get(Obj, parent) when is_record(Obj, async_message) -> 
+	{ok, Obj#async_message.parent};
+
+get(Obj, ParentProperty) when is_record(Obj, async_message) and is_atom(ParentProperty) -> 
+	get(Obj#async_message.parent, ParentProperty);
+
+get(Obj, operation) when is_record(Obj, command_message) -> 
+	{ok, Obj#command_message.operation};
+
+get(Obj, parent) when is_record(Obj, command_message) -> 
+	{ok, Obj#command_message.parent};
+
+get(Obj, ParentProperty) when is_record(Obj, command_message) and is_atom(ParentProperty) -> 
+	get(Obj#command_message.parent, ParentProperty);
+
+get(Obj, data) when is_record(Obj, ecma_array) -> 
+	{ok, Obj#ecma_array.data};
+
+get(Obj, data) when is_record(Obj, long_string) -> 
+	{ok, Obj#long_string.data};
+
+get(Obj, operation) when is_record(Obj, remoting_message) -> 
+	{ok, Obj#remoting_message.operation};
+
+get(Obj, parameters) when is_record(Obj, remoting_message) -> 
+	{ok, Obj#remoting_message.parameters};
+
+get(Obj, source) when is_record(Obj, remoting_message) -> 
+	{ok, Obj#remoting_message.source};
+
+get(Obj, parent) when is_record(Obj, remoting_message) -> 
+	{ok, Obj#remoting_message.parent};
+
+get(Obj, ParentProperty) when is_record(Obj, remoting_message) and is_atom(ParentProperty) -> 
+	get(Obj#remoting_message.parent, ParentProperty);
+
+get(Obj, remotePassword) when is_record(Obj, rpc_message) -> 
+	{ok, Obj#rpc_message.remotePassword};
+
+get(Obj, remoteUsername) when is_record(Obj, rpc_message) -> 
+	{ok, Obj#rpc_message.remoteUsername};
+
+get(Obj, parent) when is_record(Obj, rpc_message) -> 
+	{ok, Obj#rpc_message.parent};
+
+get(Obj, ParentProperty) when is_record(Obj, rpc_message) and is_atom(ParentProperty) -> 
+	get(Obj#rpc_message.parent, ParentProperty);
+
+get(Obj, data) when is_record(Obj, string) -> 
+	{ok, Obj#string.data};
+
+get(Obj, data) when is_record(Obj, string_3) -> 
+	{ok, Obj#string_3.data};
+
+get(Obj, data) when is_record(Obj, xml) -> 
+	{ok, Obj#xml.data}.
 
 set(Obj, body, Value) when is_record(Obj, abstract_message) -> 
 	NewObj = Obj#abstract_message{body = Value},
@@ -172,5 +265,7 @@ type(Obj) when is_record(Obj, string) -> string;
 
 type(Obj) when is_record(Obj, string_3) -> string_3;
 
-type(Obj) when is_record(Obj, xml) -> xml.
+type(Obj) when is_record(Obj, xml) -> xml;
+
+type(_) -> undefined.
 

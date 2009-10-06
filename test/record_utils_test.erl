@@ -2,6 +2,7 @@
 -author("trung@mdkt.org").
 
 -include_lib("eunit/include/eunit.hrl").
+-include("../include/types.hrl").
 -include("../include/messages.hrl").
 
 new_record(abstract_message) ->
@@ -37,7 +38,12 @@ new_record(command_message) ->
 	#command_message{
 		parent = new_record(async_message),
 		operation = ?UNKNOWN_OPERATION
-	}.
+	};
+
+new_record(asobject) ->
+    #asobject{
+	    data = []
+	   }.
 
 abstract_message_set_clientId_test() ->
 	NewValue = 2,
@@ -152,3 +158,10 @@ command_message_set_operation_test() ->
 	{ok, NewR, _} = record_utils:set(new_record(command_message), operation, NewValue),
 	?assert(is_record(NewR, command_message)),
 	?assertEqual(NewR#command_message.operation, NewValue).
+
+asobject_set_test() ->
+    PropertyName = "some property",
+    PropertyValue = "some value",
+    {ok, NewR, _} = record_utils:set(new_record(asobject), PropertyName, PropertyValue),
+    ?assert(is_record(NewR, asobject)),
+    ?assertEqual(1, length(NewR#asobject.data)).

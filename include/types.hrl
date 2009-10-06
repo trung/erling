@@ -6,7 +6,7 @@
 
 -record(ecma_array, {data = []}).
 
--record(asobject, {data = []}).
+-record(asobject, {array = []}).
 
 -record(xml, {data = []}).
 

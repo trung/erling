@@ -95,7 +95,6 @@ read_date(Bin) ->
     %% Just read, not use
     {ok, _, BinAfterTimeZone} = read_u16(Bin),
     {ok, TimeInMilli, NextBin} = read_number(BinAfterTimeZone),
-    io:fwrite("~p~n", [TimeInMilli]),
     %% convert to erlang date
     Date = utils:milliseconds_to_date(TimeInMilli),
     {ok, Date, NextBin}.
@@ -111,9 +110,25 @@ read_xml(Bin) ->
     {ok, LongString, NextBin} = read_long_string(Bin),
 	{ok, #xml{data = LongString#long_string.data}, NextBin}.
 
+read_typed_object_property(Bin, Obj) ->
+    {ok, PropertyName, BinAfterName} = read_string(Bin),
+    case read_object(BinAfterName) of
+	{object_end_marker, NextBin, _} ->
+	    {ok, Obj, NextBin};
+	{ok, ObjValue, NextBin} ->
+	    {ok, NewObj, _} = record_utils:set(Obj, PropertyName, ObjValue),
+	    read_typed_object_property(NextBin, NewObj)
+    end.
+
 read_typed_object(Bin) ->
-    {ok, _ClassName, _BinAfterClassName} = read_string(Bin),
-    {bad, {"Not yet implemented", ?MODULE, ?LINE, Bin}}.
+    {ok, ClassName, BinAfterClassName} = read_string(Bin),
+    case registry:fc_to_record(ClassName#string.data) of
+	{ok, undefined} ->
+	    % create asobject
+	    read_typed_object_property(BinAfterClassName, #asobject{});
+	{ok, NewObject} ->
+	    read_typed_object_property(BinAfterClassName, NewObject)
+    end.
 
 read_null(Bin) ->
     {ok, null, Bin}.
@@ -127,7 +142,7 @@ read_objects_until_end(Bin, Acc) ->
 	    %% Always read value but be careful to ignore erroneous 'length' prop 
 	    %% that is sometimes sent by the player. (via BlazeDS)
 	    if 
-		Name == "length" ->
+		Name#string.data == "length" ->
 		    read_objects_until_end(NextBin, Acc);
 		true ->
 		    read_objects_until_end(NextBin, Acc ++ [{Name, Obj}])
@@ -173,10 +188,6 @@ read_object(<<?avm_plus_object_marker:8, Rest/binary>>) -> amf3:read_object(Rest
 %% Use xxx(marker, Value) to build binary with marker
 %% ===========================================================
 
-write_object(marker, Value) ->
-    {ok, Bin} = write_object(Value),
-    write_object_now(?object_marker, Bin).
-
 write_object(null) -> write_null();
 write_object(true) -> write_boolean(true);
 write_object(false) -> write_boolean(false);
@@ -184,12 +195,34 @@ write_object(Number) when is_number(Number) -> write_number(Number);
 write_object(String) when is_record(String, string) -> write_string(String);
 write_object(LongString) when is_record(LongString, long_string) -> write_long_string(LongString);
 write_object(EcmaArray) when is_record(EcmaArray, ecma_array) -> write_ecma_array(EcmaArray);
-write_object({{Y, M, D}, {H, M, S}}) -> write_date({{Y, M, D}, {H, M, S}});
+write_object({{Ye, Mo, Da}, {Ho, Mi, Se}}) -> write_date({{Ye, Mo, Da}, {Ho, Mi, Se}});
 write_object(Xml) when is_record(Xml, xml) -> write_xml(Xml);
-write_object(Obj) -> {bad, {"Unknown object", Obj}}.
+write_object(Array) when is_list(Array) -> write_strict_array(Array);
+write_object(Obj) -> 
+    case registry:record_to_fc(Obj) of
+	{ok, undefined} ->
+	    {bad, {"Unknown object", ?MODULE, ?LINE}};
+	{ok, ClassName} ->
+	    {ok, ClassNameBin} = write_string(#string{data = ClassName}),
+	    case record_utils:type(Obj) of
+		Type ->
+		    Fields = record_utils:fields_atom(Type),
+		    ObjBin = list_to_binary([write_object_info(Obj, X) || X <- Fields ]),
+		    ObjEnd = write_object_end(),
+		    write_object_now(?typed_object_marker, [ClassNameBin, ObjBin, ObjEnd]);
+		_ ->
+		    {bad, {"Object type not found even it was registered", ClassName, Obj}}
+	    end
+    end.
 
+write_object(ref, Ref) -> write_reference(Ref);
+write_object(amf3, Obj) -> amf3:write_object(Obj).
 
-
+write_object_info(Obj, Field) ->
+    {ok, FieldBin} = write_string(#string{data = atom_to_list(Field)}),
+    {ok, Value} = record_utils:get(Obj, Field),
+    {ok, ValueBin} = write_object(Value),
+    [FieldBin, ValueBin].
 
 %% return {ok, ReturnBin} or {bad, Reason}
 write_u8(Value)  -> {ok, <<Value:8>>}.
@@ -201,93 +234,98 @@ write_u32(Value) -> {ok, <<Value:32>>}.
 write_object_now(Marker, Bin) ->
     {ok, list_to_binary([<<Marker:8>>, Bin])}.
 
-write_number(marker, Value) ->
-    {ok, Bin} = write_number(Value),
+write_number(Value) ->
+    {ok, Bin} = number_to_binary(Value),
     write_object_now(?number_marker, Bin).
 
-write_number(Value) -> 
+number_to_binary(Value) -> 
     {ok, <<Value/float>>}.
 
-write_string(marker, Value) ->
-    {ok, Bin} = write_string(Value),
+write_string(Value) ->
+    {ok, Bin} = string_to_binary(Value),
     write_object_now(?string_marker, Bin).
 
 %% write UTF-8-empty
-write_string(#string{data = Value}) when length(Value) == 0 ->
+string_to_binary(#string{data = Value}) when length(Value) == 0 ->
     write_u16(0);
 
 %% write utf8 string to binary
-write_string(#string{data = Value}) ->
+string_to_binary(#string{data = Value}) ->
     Len = length(Value),
     {ok, LenBin} = write_u16(Len),
     {ok, StringBin} = utf8:to_binary(Value),
     {ok, list_to_binary([LenBin, StringBin])}.
 
-write_long_string(marker, Value) ->
-    {ok, Bin} = write_long_string(Value),
+write_long_string(Value) ->
+    {ok, Bin} = long_string_to_binary(Value),
     write_object_now(?long_string_marker, Bin).
 
 %% write utf8 long string to binary
-write_long_string(#long_string{data = Value}) ->
+long_string_to_binary(#long_string{data = Value}) ->
     Len = length(Value),
     {ok, LenBin} = write_u32(Len),
     {ok, StringBin} = utf8:to_binary(Value),
     {ok, list_to_binary([LenBin, StringBin])}.
 
-write_xml(marker, Value) ->
-    {ok, Bin} = write_xml(Value),
+write_xml(Value) ->
+    {ok, Bin} = xml_to_binary(Value),
     write_object_now(?xml_document_marker, Bin).
 
-write_xml(#xml{data = Value}) -> 
-    write_long_string(#long_string{data = Value}).
+xml_to_binary(#xml{data = Value}) -> 
+    long_string_to_binary(#long_string{data = Value}).
 
-write_date(marker, Value) ->
-    {ok, Bin} = write_date(Value),
+write_date(Value) ->
+    {ok, Bin} = date_to_binary(Value),
     write_object_now(?date_marker, Bin).
 
-write_date({Date, Time}) -> write_date(utils:date_to_milliseconds({Date, Time}));
-write_date(Milliseconds) when is_number(Milliseconds) ->
+date_to_binary({Date, Time}) -> date_to_binary(utils:date_to_milliseconds({Date, Time}));
+date_to_binary(Milliseconds) when is_number(Milliseconds) ->
     {ok, TimezoneBin} = write_u16(0), %% just for reserved, not used
-    {ok, DateBin} = write_number(Milliseconds),
+    {ok, DateBin} = number_to_binary(Milliseconds),
     {ok, list_to_binary([TimezoneBin, DateBin])}.
 
-write_boolean(marker, Value) ->
-    {ok, Bin} = write_boolean(Value),
+write_boolean(Value) ->
+    {ok, Bin} = boolean_to_binary(Value),
     write_object_now(?boolean_marker, Bin).
 
-write_boolean(true) -> write_u8(1);
-write_boolean(false) -> write_u8(0).
+boolean_to_binary(true) -> write_u8(1);
+boolean_to_binary(false) -> write_u8(0).
 
-write_strict_array(marker, Value) ->
-    {bad, {"Not yet implemented", ?MODULE, ?LINE}}.
-
+%% input Value is the list of objects
 write_strict_array(Value) ->
-    {bad, {"Not yet implemented", ?MODULE, ?LINE}}.
+    {ok, Bin} = strict_array_to_binary(Value),
+    write_object_now(?strict_array_marker, Bin).
 
-write_typed_object(marker, Value) ->
-    {ok, Bin} = write_typed_object(Value),
-    write_object_now(?typed_object_marker, Bin).
+item_to_binary(Obj) ->
+    {ok, Bin} = write_object(Obj),
+    Bin.
+
+strict_array_to_binary(Value) ->
+    Len = length(Value),
+    {ok, LenBin} = write_u32(Len),
+    ObjBinArray = [ item_to_binary(X) || X <- Value ],
+    {ok, list_to_binary([LenBin, ObjBinArray])}.
 
 write_typed_object(Value) ->
     {bad, {"Not yet implemented", ?MODULE, ?LINE}}.
 
-write_reference(marker, Value) ->
-    {ok, Bin} = write_reference(Value),
+write_reference(Value) ->
+    {ok, Bin} = reference_to_binary(Value),
     write_object_now(?reference_marker, Bin).
 
-write_reference(Value) ->
+reference_to_binary(Value) ->
     write_u16(Value).
 
-write_ecma_array(marker, Value) ->
-    {ok, Bin} = write_ecma_array(Value),
+write_ecma_array(Value) ->
+    {ok, Bin} = ecma_array_to_binary(Value),
     write_object_now(?ecma_array_marker, Bin).
 
 write_ecma_array_item({Name, Value}) ->
-    {ok, NameBin} = write_string(Name),
-    {ok, ValueBin} = write_object(marker, Value),
+    {ok, NameBin} = string_to_binary(Name),
+    {ok, ValueBin} = write_object(Value),
     [NameBin, ValueBin].
 
-write_ecma_array(#ecma_array{data = Value}) ->
+ecma_array_to_binary(#ecma_array{data = Value}) ->
     {ok, LenBin} = write_u32(0),
     ArrayBin = [write_ecma_array_item(X) || X <- Value],
     {ok, ObjectEndBin} = write_object_end(),

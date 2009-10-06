@@ -14,3 +14,9 @@ date_to_milliseconds(Date) ->
     Seconds = calendar:datetime_to_gregorian_seconds(Date),
     DiffSeconds = Seconds - BaseDate,
     DiffSeconds * 1000.
+
+%% Convert String to term, Str must be term-like string
+to_term(Str) ->
+    {ok, Tokens, _} = erl_scan:string(Str), 
+    {ok, Term} = erl_parse:parse_term(Tokens ++ [{dot,1}]),
+    Term.

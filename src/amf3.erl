@@ -229,12 +229,12 @@ read_object_property(Bin, [PropertyStr|Tail], PropertyMap) when is_list(Property
     read_object_property(NextBin, Tail, PropertyMap ++ [{PropertyStr, Value}]);
 read_object_property(Bin, [PropertyStr|Tail], Object) ->
     {ok, Value, NextBin} = read_object(Bin),
-    PropertyName = record_utils:to_term(PropertyStr),
+    PropertyName = utils:to_term(PropertyStr#string_3.data),
     {ok, NewObject, _} = record_utils:set(Object, PropertyName, Value),
     read_object_property(NextBin, Tail, NewObject).
 
 read_object_with_trait(Bin, TraitObj) when is_record(TraitObj, trait) ->
-    case record_utils:fc_to_record(TraitObj#trait.className) of
+    case registry:fc_to_record((TraitObj#trait.className)#string_3.data) of
 	{ok, undefined} ->
 	    {ok, PropertyMap, BinAfterProperty} = read_object_property(Bin, TraitObj#trait.properties, []),
 	    {ok, PropertyMapAll, NextBin} = read_object_property(BinAfterProperty, {dynamic, TraitObj#trait.dynamic}, PropertyMap),

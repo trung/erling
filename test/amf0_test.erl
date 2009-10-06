@@ -5,8 +5,16 @@
 -author("trung@mdkt.org").
 
 -include_lib("eunit/include/eunit.hrl").
--include ("../include/types.hrl").
+-include("../include/types.hrl").
+-include("../include/messages.hrl").
 -compile(export_all).
+
+%% Generic method to test write_object/read_object
+verify(ExpectedValue) ->
+    {ok, Bin} = amf0:write_object(ExpectedValue),
+    ?assert(Bin /= <<>>),
+    {ok, ActualValue, _Rest} = amf0:read_object(Bin),
+    ?assertEqual(ExpectedValue, ActualValue).
 
 %%
 %% Read/write an unsigned byte, 8-bit of data, an octet
@@ -40,67 +48,50 @@ u32_test() ->
 
 number_test() ->
     ExpectedValue = 12.3,
-    {ok, Bin} = amf0:write_number(marker, ExpectedValue),
-    ?assert(Bin /= <<>>),
-    {ok, ActualValue, _Rest} = amf0:read_object(Bin),
-    ?assertEqual(ExpectedValue, ActualValue).
+    verify(ExpectedValue).
 
 string_test() ->
     ExpectedValue = #string{data = "nguyen Kien trung"},
-    {ok, Bin} = amf0:write_string(marker, ExpectedValue),
-    ?assert(Bin /= <<>>),
-    {ok, ActualValue, _Rest} = amf0:read_object(Bin),
-	?assert(is_record(ActualValue, string)),
-    ?assertEqual(ExpectedValue#string.data, ActualValue#string.data).
+    verify(ExpectedValue).
 
 long_string_test() ->
     ExpectedValue = #long_string{data = "nguyen Kien trung"},
-    {ok, Bin} = amf0:write_long_string(marker, ExpectedValue),
-    ?assert(Bin /= <<>>),
-    {ok, ActualValue, _Rest} = amf0:read_object(Bin),
-    ?assertEqual(ExpectedValue#long_string.data, ActualValue#long_string.data).
+    verify(ExpectedValue).
 
 xml_test() ->
     ExpectedValue = #xml{data = "<xml><a></a></xml>"},
-    {ok, Bin} = amf0:write_xml(marker, ExpectedValue),
-    ?assert(Bin /= <<>>),
-    {ok, ActualValue, _Rest} = amf0:read_object(Bin),
-    ?assertEqual(ExpectedValue#xml.data, ActualValue#xml.data).
+    verify(ExpectedValue).
 
 date_test() ->
     ExpectedValue = {{2009, 12, 12}, {12, 30, 40}},
-    {ok, Bin} = amf0:write_date(marker, ExpectedValue),
-    ?assert(Bin /= <<>>),
-    {ok, ActualValue, _Rest} = amf0:read_object(Bin),
-    ?assertEqual(ExpectedValue, ActualValue).
+    verify(ExpectedValue).
 
 boolean_true_test() ->
     ExpectedValue = true,
-    {ok, Bin} = amf0:write_boolean(marker, ExpectedValue),
-    ?assert(Bin /= <<>>),
-    {ok, ActualValue, _Rest} = amf0:read_object(Bin),
-    ?assertEqual(ExpectedValue, ActualValue).
+    verify(ExpectedValue).
 
 boolean_false_test() ->
     ExpectedValue = false,
-    {ok, Bin} = amf0:write_boolean(marker, ExpectedValue),
-    ?assert(Bin /= <<>>),
-    {ok, ActualValue, _Rest} = amf0:read_object(Bin),
-    ?assertEqual(ExpectedValue, ActualValue).
+    verify(ExpectedValue).
 
 null_test() ->
     ExpectedValue = null,
-    {ok, Bin} = amf0:write_null(),
-    ?assert(Bin /= <<>>),
-    {ok, ActualValue, _Rest} = amf0:read_object(Bin),
-    ?assertEqual(ExpectedValue, ActualValue).
+    verify(ExpectedValue).
 
 reference_test() ->
     ExpectedValue = "something",
     %% First, store an object in to object reference table
     amf0:reset(),
     amf0:write_object_reference(ExpectedValue),
-    {ok, Bin} = amf0:write_reference(marker, 0),
+    {ok, Bin} = amf0:write_object(ref, 0),
     ?assert(Bin /= <<>>),
     {ok, ActualValue, _Rest} = amf0:read_object(Bin),
     ?assertEqual(ExpectedValue, ActualValue).
+
+strict_array_test() ->
+    ExpectedValue = [#string{data = "SomeString"}, #xml{data = "<b></b>"}, true, 13.4],
+    verify(ExpectedValue).
+
+registered_typed_object_test() ->
+    ExpectedValue = #remoting_message{source = #string{data = "somesource"}},
+    verify(ExpectedValue).

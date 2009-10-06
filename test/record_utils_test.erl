@@ -42,7 +42,7 @@ new_record(command_message) ->
 
 new_record(asobject) ->
     #asobject{
-	    data = []
+	    array = []
 	   }.
 
 abstract_message_set_clientId_test() ->
@@ -164,4 +164,4 @@ asobject_set_test() ->
     PropertyValue = "some value",
     {ok, NewR, _} = record_utils:set(new_record(asobject), PropertyName, PropertyValue),
     ?assert(is_record(NewR, asobject)),
-    ?assertEqual(1, length(NewR#asobject.data)).
+    ?assertEqual(1, length(NewR#asobject.array)).

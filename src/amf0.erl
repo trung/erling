@@ -111,12 +111,13 @@ read_xml(Bin) ->
 	{ok, #xml{data = LongString#long_string.data}, NextBin}.
 
 read_typed_object_property(Bin, Obj) ->
-    {ok, PropertyName, BinAfterName} = read_string(Bin),
+    {ok, {string, PropertyName}, BinAfterName} = read_string(Bin),
+    io:fwrite("~n~p~n", [PropertyName]),
     case read_object(BinAfterName) of
 	{object_end_marker, NextBin, _} ->
 	    {ok, Obj, NextBin};
 	{ok, ObjValue, NextBin} ->
-	    {ok, NewObj, _} = record_utils:set(Obj, PropertyName, ObjValue),
+	    {ok, NewObj, _} = record_utils:set(Obj, list_to_atom(PropertyName), ObjValue),
 	    read_typed_object_property(NextBin, NewObj)
     end.
 
@@ -204,7 +205,7 @@ write_object(Obj) ->
 	{ok, undefined} ->
 	    {bad, {"Unknown object", ObjType, ?MODULE, ?LINE}};
 	{ok, ClassName} ->
-	    {ok, ClassNameBin} = write_string(#string{data = ClassName}),
+	    {ok, ClassNameBin} = string_to_binary(#string{data = ClassName}),
 	    case ObjType of
 		undefined ->
 			{bad, {"Object type not found even it was registered", ClassName, Obj}};
@@ -220,7 +221,7 @@ write_object(ref, Ref) -> write_reference(Ref);
 write_object(amf3, Obj) -> amf3:write_object(Obj).
 
 write_object_info(Obj, Field) ->
-    {ok, FieldBin} = write_string(#string{data = atom_to_list(Field)}),
+    {ok, FieldBin} = string_to_binary(#string{data = atom_to_list(Field)}),
     case record_utils:get(Obj, Field) of
 		{ok, undefined} ->
 			[];

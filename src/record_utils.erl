@@ -57,14 +57,8 @@ get(Obj, timeToLive) when is_record(Obj, abstract_message) ->
 get(Obj, timestamp) when is_record(Obj, abstract_message) -> 
 	{ok, Obj#abstract_message.timestamp};
 
-get(Obj, PropertyName) when is_record(Obj, asobject) -> 
-	Ret = [X || {P, X} <- Obj#asobject.array, P == PropertyName],
-	if
-		length(Ret) == 0 -> {bad, {"PropertyName not found in the object", Obj, PropertyName}};
-		true -> 
-			[Value|_] = Ret,
-	{ok, Value}
-	end;
+get(Obj, array) when is_record(Obj, asobject) -> 
+	{ok, Obj#asobject.array};
 
 get(Obj, correlationId) when is_record(Obj, async_message) -> 
 	{ok, Obj#async_message.correlationId};
@@ -157,8 +151,8 @@ set(Obj, timestamp, Value) when is_record(Obj, abstract_message) ->
 	NewObj = Obj#abstract_message{timestamp = Value},
 	{ok, NewObj, {timestamp, Value}};
 
-set(Obj, PropertyName, Value) when is_record(Obj, asobject) -> 
-	NewObj = #asobject{array = Obj#asobject.array ++ [{PropertyName, Value}]},
+set(Obj, array, Value) when is_record(Obj, asobject) -> 
+	NewObj = Obj#asobject{array = Value},
 	{ok, NewObj, {array, Value}};
 
 set(Obj, correlationId, Value) when is_record(Obj, async_message) -> 

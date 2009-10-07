@@ -13,6 +13,7 @@
 verify(ExpectedValue) ->
     {ok, Bin} = amf0:write_object(ExpectedValue),
     ?assert(Bin /= <<>>),
+    ?debugFmt("~p~n", [Bin]),
     {ok, ActualValue, _Rest} = amf0:read_object(Bin),
     ?assertEqual(ExpectedValue, ActualValue).
 

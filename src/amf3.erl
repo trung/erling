@@ -47,7 +47,7 @@ read_uint_29(<<2#1:1, First:7, 2#0:1, Second:7, Rest/binary>>) ->
 read_uint_29(<<2#1:1, First:7, 2#1:1, Second:7, 2#0:1, Third:7, Rest/binary>>) ->
     {ok, ((((First band 16#7F) bsl 7) bor (Second band 16#7F)) bsl 7) bor Third, Rest};
 read_uint_29(<<2#1:1, First:7, 2#1:1, Second:7, 2#1:1, Third:7, Forth:8, Rest/binary>>) ->
-    {ok, (((((First band 16#7F) bsl 7) bor (Second band 16#7F)) bsl 7) bor ((Third band 16#7F) bsl 8)) bor Forth, Rest};
+    {ok, ((((((First band 16#7F) bsl 7) bor (Second band 16#7F)) bsl 7) bor (Third band 16#7F)) bsl 8) bor Forth, Rest};
 read_uint_29(_) ->
     {bad, "Not a binary or number out of range or empty binary"}.
 
@@ -308,3 +308,29 @@ read_object(<<>>) ->
 
 read_object(Something) ->
     {bad, {"Not a binary or not matched any marker", Something}}.
+
+%% ===============================================
+%% Writers
+%% ===============================================
+
+write_null() ->
+    {ok, <<?null_marker>>}.
+
+write_uint_29(Value) when Value < 16#80 -> amf0:write_u8(Value);
+write_uint_29(Value) when Value < 16#4000 -> 
+    {ok, FirstBin} = amf0:write_u8(((Value bsr 7) band 16#7F) bor 16#80),
+    {ok, SecondBin} = amf0:write_u8(Value band 16#7F),
+    {ok, list_to_binary([FirstBin, SecondBin])};
+write_uint_29(Value) when Value < 16#200000 ->
+    {ok, FirstBin} = amf0:write_u8(((Value bsr 14) band 16#7F) bor 16#80),
+    {ok, SecondBin} = amf0:write_u8(((Value bsr 7) band 16#7F) bor 16#80),
+    {ok, ThirdBin} = amf0:write_u8(Value band 16#7F),
+    {ok, list_to_binary([FirstBin, SecondBin, ThirdBin])};
+write_uint_29(Value) when Value < 16#40000000 ->
+    {ok, FirstBin} = amf0:write_u8(((Value bsr 22) band 16#7F) bor 16#80),
+    {ok, SecondBin} = amf0:write_u8(((Value bsr 15) band 16#7F) bor 16#80),
+    {ok, ThirdBin} = amf0:write_u8(((Value bsr 8) band 16#7F) bor 16#80),
+    {ok, ForthBin} = amf0:write_u8(Value band 16#FF),
+    {ok, list_to_binary([FirstBin, SecondBin, ThirdBin, ForthBin])};
+write_uint_29(Value) ->
+    {bad, {"Value out of range", Value, ?MODULE, ?LINE}}.

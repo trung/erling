@@ -231,7 +231,9 @@ write_object(Obj) ->
     end.
 
 write_object(ref, Ref) -> write_reference(Ref);
-write_object(amf3, Obj) -> amf3:write_object(Obj).
+write_object(amf3, Obj) -> 
+    {ok, Amf3Bin} = amf3:write_object(Obj),
+    write_object_now(?avm_plus_object_marker, Amf3Bin).
 
 write_object_info(Field, Obj) when is_record(Field, string) ->
     {ok, FieldBin} = string_to_binary(Field),

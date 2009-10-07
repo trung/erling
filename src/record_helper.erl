@@ -1,4 +1,6 @@
 %% For each header file, it scans thru all records and create helper functions
+%% Helper functions are: 
+%% setters, getters, fields, fields_atom, type
 -module(record_helper).
 -author("trung@mdkt.org").
 

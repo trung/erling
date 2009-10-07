@@ -111,14 +111,19 @@ read_xml(Bin) ->
 	{ok, #xml{data = LongString#long_string.data}, NextBin}.
 
 read_typed_object_property(Bin, Obj) ->
-    {ok, {string, PropertyName}, BinAfterName} = read_string(Bin),
-    io:fwrite("~n~p~n", [PropertyName]),
+    {ok, PropertyName, BinAfterName} = read_string(Bin),
     case read_object(BinAfterName) of
 	{object_end_marker, NextBin, _} ->
 	    {ok, Obj, NextBin};
 	{ok, ObjValue, NextBin} ->
-	    {ok, NewObj, _} = record_utils:set(Obj, list_to_atom(PropertyName), ObjValue),
-	    read_typed_object_property(NextBin, NewObj)
+	    case record_utils:type(Obj) of
+		asobject ->
+		    {ok, NewObj, _} = record_utils:set(Obj, PropertyName, ObjValue),
+		    read_typed_object_property(NextBin, NewObj);
+		_ ->
+		    {ok, NewObj, _} = record_utils:set(Obj, list_to_atom(PropertyName#string.data), ObjValue),
+		    read_typed_object_property(NextBin, NewObj)
+	    end
     end.
 
 read_typed_object(Bin) ->
@@ -167,7 +172,7 @@ read_reference(Bin) ->
 read_object(<<?number_marker:8, Rest/binary>>)          -> read_number(Rest);
 read_object(<<?boolean_marker:8, Rest/binary>>)         -> read_boolean(Rest);
 read_object(<<?string_marker:8, Rest/binary>>)          -> read_string(Rest);
-read_object(<<?object_marker:8, Rest/binary>>)          -> {bad, {"Not yet implemented", ?MODULE,?LINE, Rest}};
+read_object(<<?object_marker:8, Rest/binary>>)          -> read_typed_object_property(Rest, #asobject{});
 read_object(<<?movieclip_marker:8, Rest/binary>>)       -> {bad, {"Reserved, not supported", Rest}};
 read_object(<<?null_marker:8, Rest/binary>>)            -> read_null(Rest);
 read_object(<<?undefined_marker:8, Rest/binary>>)       -> {bad, {"Undefined marker", ?MODULE, ?LINE, Rest}};
@@ -200,10 +205,18 @@ write_object({{Ye, Mo, Da}, {Ho, Mi, Se}}) -> write_date({{Ye, Mo, Da}, {Ho, Mi,
 write_object(Xml) when is_record(Xml, xml) -> write_xml(Xml);
 write_object(Array) when is_list(Array) -> write_strict_array(Array);
 write_object(Obj) -> 
-	ObjType = record_utils:type(Obj),
+    ObjType = record_utils:type(Obj),
     case registry:record_to_fc(ObjType) of
 	{ok, undefined} ->
-	    {bad, {"Unknown object", ObjType, ?MODULE, ?LINE}};
+	    % write asobject
+	    case ObjType of
+		asobject ->
+		    PropertyArray = Obj#asobject.array,
+		    {ok, ObjEnd} = write_object_end(),
+		    write_object_now(?object_marker, [write_object_info(Field, Obj) || {Field, Obj} <- PropertyArray] ++ ObjEnd);
+		_ ->
+		    {bad, {"Unknown object type", ObjType, ?MODULE, ?LINE}}
+	    end;
 	{ok, ClassName} ->
 	    {ok, ClassNameBin} = string_to_binary(#string{data = ClassName}),
 	    case ObjType of
@@ -211,7 +224,7 @@ write_object(Obj) ->
 			{bad, {"Object type not found even it was registered", ClassName, Obj}};
 		Type ->
 		    Fields = record_utils:fields_atom(Type),
-		    ObjBin = list_to_binary([write_object_info(Obj, X) || X <- Fields ]),
+		    ObjBin = list_to_binary([write_object_info(X, Obj) || X <- Fields ]),
 		    {ok, ObjEnd} = write_object_end(),
 		    write_object_now(?typed_object_marker, [ClassNameBin, ObjBin, ObjEnd])
 	    end
@@ -220,15 +233,19 @@ write_object(Obj) ->
 write_object(ref, Ref) -> write_reference(Ref);
 write_object(amf3, Obj) -> amf3:write_object(Obj).
 
-write_object_info(Obj, Field) ->
+write_object_info(Field, Obj) when is_record(Field, string) ->
+    {ok, FieldBin} = string_to_binary(Field),
+    {ok, ValueBin} = write_object(Obj),
+    [FieldBin, ValueBin];
+write_object_info(Field, Obj) ->
     {ok, FieldBin} = string_to_binary(#string{data = atom_to_list(Field)}),
     case record_utils:get(Obj, Field) of
-		{ok, undefined} ->
-			[];
-		{ok, Value} ->
-    		{ok, ValueBin} = write_object(Value),
-    		[FieldBin, ValueBin]
-	end.
+	{ok, undefined} ->
+	    [];
+	{ok, Value} ->
+	    {ok, ValueBin} = write_object(Value),
+	    [FieldBin, ValueBin]
+    end.
 
 %% return {ok, ReturnBin} or {bad, Reason}
 write_u8(Value)  -> {ok, <<Value:8>>}.

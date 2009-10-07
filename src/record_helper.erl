@@ -1,6 +1,7 @@
 %% For each header file, it scans thru all records and create helper functions
 %% Helper functions are: 
 %% setters, getters, fields, fields_atom, type
+
 -module(record_helper).
 -author("trung@mdkt.org").
 
@@ -24,10 +25,12 @@ make(HeaderFiles, OutDir) ->
 read(HeaderFile) ->
     try epp:parse_file(HeaderFile,[],[]) of
 	{ok, Tree} ->
-	    parse(Tree)
+	    parse(Tree);
+	{error, Error} ->
+	    {error, {"Error parsing header file", HeaderFile, Error}}
     catch
 	_:Error ->
-	    {error, Error}
+	    {catched_error, {"Error parsing header file", HeaderFile, Error}}
     end.
 
 format_src([{_, _, _, Src}|T]) when length(T) == 0 ->
@@ -107,6 +110,8 @@ generate_fields_atom_function(RecordName, RecordFields) ->
 
 generate_setter_getter_function(RecordName, {record_field, _, {atom, _, FieldName}, {record, _, ParentRecordName, _}}) ->
     to_setter_getter_function(atom_to_list(RecordName), atom_to_list(FieldName), atom_to_list(ParentRecordName));
+generate_setter_getter_function(RecordName, {record_field, _, {atom, _, array}}) ->
+    to_setter_getter_function(atom_to_list(RecordName));
 generate_setter_getter_function(RecordName, {record_field, _, {atom, _, array}, _}) ->
     to_setter_getter_function(atom_to_list(RecordName));
 generate_setter_getter_function(RecordName, {record_field, _, {atom, _, FieldName}, _}) ->

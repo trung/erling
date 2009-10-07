@@ -13,8 +13,9 @@
 verify(ExpectedValue) ->
     {ok, Bin} = amf0:write_object(ExpectedValue),
     ?assert(Bin /= <<>>),
-    ?debugFmt("~p~n", [Bin]),
+%    ?debugFmt("~p=~p~n", [Bin, size(Bin)]),
     {ok, ActualValue, _Rest} = amf0:read_object(Bin),
+%    ?debugFmt("~p~n", [ActualValue]),
     ?assertEqual(ExpectedValue, ActualValue).
 
 %%
@@ -95,4 +96,8 @@ strict_array_test() ->
 
 registered_typed_object_test() ->
     ExpectedValue = #remoting_message{source = #string{data = "somesource"}},
+    verify(ExpectedValue).
+
+unregistered_typed_object_test() ->
+    ExpectedValue = #asobject{array = [{#string{data = "DSId"}, #string{data = "someId"}}, {#string{data = "DSTemp"}, 12.0}]},
     verify(ExpectedValue).

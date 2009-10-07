@@ -14,3 +14,6 @@ clean:
 
 record_utils.erl: $(EBIN_DIR)/record_helper.$(EMULATOR) $(ERL_GENERATED_SOURCES)
 	$(ERL) -noshell -pa $(EBIN_DIR) -s record_helper make $(ERL_GENERATED_SOURCES) -s init stop
+
+$(ERL_GENERATED_SOURCES):
+	@echo "Nothing"

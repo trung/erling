@@ -9,6 +9,7 @@
 uint29_verify(ExpectedValue) ->
     {ok, Bin} = amf3:write_uint_29(ExpectedValue),
     ?assert(Bin /= <<>>),
+    ?debugFmt("~p~n", [Bin]),
     {ok, ActualValue, _} = amf3:read_uint_29(Bin),
     ?assertEqual(ExpectedValue, ActualValue).
 

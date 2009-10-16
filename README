@@ -1,3 +1,10 @@
+           _ _             
+  ___ _ __| (_)_ __   __ _ 
+ / _ \ '__| | | '_ \ / _` |
+|  __/ |  | | | | | | (_| |
+ \___|_|  |_|_|_| |_|\__, |
+                     |___/ 
+
 + Parsing AMF0 and AMF3 binary (WIP)
 + Parsing services-config.xml (Not yet started)
 + Mochiweb or Beepbeep or ???

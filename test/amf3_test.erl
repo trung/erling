@@ -25,10 +25,10 @@ uint29_less_2097152_test() ->
     ExpectedValue = 1097152,
     uint29_verify(ExpectedValue).
 
-uint29_less_1073741824_test() ->
-    ExpectedValue = 1023741824,
+uint29_less_536870911_test() ->
+    ExpectedValue = 536870911,
     uint29_verify(ExpectedValue).
 
 uint29_out_of_range_test() ->
-    ExpectedValue = 1073741824,
+    ExpectedValue = 536870912,
     {bad, _} = amf3:write_uint_29(ExpectedValue).

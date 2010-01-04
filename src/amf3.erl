@@ -326,7 +326,7 @@ write_uint_29(Value) when Value < 16#200000 ->
     {ok, SecondBin} = amf0:write_u8(((Value bsr 7) band 16#7F) bor 16#80),
     {ok, ThirdBin} = amf0:write_u8(Value band 16#7F),
     {ok, list_to_binary([FirstBin, SecondBin, ThirdBin])};
-write_uint_29(Value) when Value < 16#40000000 ->
+write_uint_29(Value) when Value < 16#20000000 ->
     {ok, FirstBin} = amf0:write_u8(((Value bsr 22) band 16#7F) bor 16#80),
     {ok, SecondBin} = amf0:write_u8(((Value bsr 15) band 16#7F) bor 16#80),
     {ok, ThirdBin} = amf0:write_u8(((Value bsr 8) band 16#7F) bor 16#80),

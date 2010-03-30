@@ -1,6 +1,6 @@
 package vo
 {
-	[RemoteClass(alias="org.mdkt.entity.Addres")]
+	[RemoteClass(alias="org.mdkt.entity.Address")]
 	[Bindable]
 	public class Address extends BaseVO
 	{

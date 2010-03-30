@@ -7,4 +7,9 @@
 
 + Parsing AMF0 and AMF3 binary (WIP)
 + Parsing services-config.xml (Not yet started)
-+ Mochiweb or Beepbeep or ???
++ Mochiweb Server to capture AMF Requests (WIP)
+  to start the server:
+
+  cd ebin
+  erl
+  1> erling_server:start().
